@@ -1,0 +1,14 @@
+<html>
+<head><style>
+  body { font-family: Verdana, sans-serif; font-size: 11px; background: {{ cfg.theme.accent }}; margin: 0; }
+  td { padding: 6px 8px; }
+  a { color: #1a1a5e; text-decoration: none; }
+</style></head>
+<body>
+<table class="t3">
+{% for item in cfg.nav_order %}
+  <tr><td><a href="{{ nav_links[item] }}" target="contentframe">{{ item }}</a></td></tr>
+{% endfor %}
+</table>
+</body>
+</html>

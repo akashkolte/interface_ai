@@ -1,0 +1,18 @@
+{% extends "_layout.html" %}
+{% block content %}
+{% if message %}<div class="warn">{{ message }}</div>{% endif %}
+<table class="t2"><tr><td>
+  <form method="get" action="/search/run">
+    <table class="t3">
+      <tr>
+        <!-- The field is named only by the text in the cell to its left.
+             There is no <label for>, so the accessibility tree gives this input
+             an empty name. Label-proximity targeting is the only stable option. -->
+        <td class="c3">{{ cfg.label_member_id }}</td>
+        <td class="c3"><input type="text" name="mid" size="20"></td>
+        <td class="c3"><input type="submit" value="{{ cfg.label_search_button }}"></td>
+      </tr>
+    </table>
+  </form>
+</td></tr></table>
+{% endblock %}

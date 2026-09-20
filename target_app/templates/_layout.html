@@ -1,0 +1,34 @@
+<!--
+  Deliberately legacy markup, modelled on real back-office banking screens:
+    - table-based layout, nested three deep
+    - NO id attributes, NO data-testid, NO label/for association
+    - form fields sit in a <td> next to a plain-text <td> that names them
+    - generic, meaningless class names
+  Controls keep their visible text, so the accessibility tree can still name
+  buttons and links -- that is true of real legacy apps too. What it cannot do
+  is name the input fields, which is precisely why the locator strategy needs
+  a label-proximity fallback tier.
+-->
+<html>
+<head>
+  <title>{{ cfg.display_name }} - {{ page_title }}</title>
+  <style>
+    body { font-family: Verdana, Geneva, sans-serif; font-size: 12px; margin: 0; background: #f4f4f0; }
+    .t1 { width: 100%; border-collapse: collapse; }
+    .t2 { border: 1px solid #999; background: #fff; margin: 8px; }
+    .t3 { border-collapse: collapse; }
+    .c1 { background: {{ cfg.theme.bar }}; color: #fff; padding: 6px 10px; font-weight: bold; }
+    .c2 { background: {{ cfg.theme.accent }}; padding: 4px 8px; font-weight: bold; }
+    .c3 { padding: 4px 8px; }
+    .c4 { padding: 4px 8px; text-align: right; }
+    .err { background: #ffe8e8; border: 1px solid #c00; color: #900; padding: 6px 10px; margin: 8px; }
+    .warn { background: #fff8d8; border: 1px solid #c90; padding: 6px 10px; margin: 8px; }
+    .ok { background: #e8f6e8; border: 1px solid #090; padding: 6px 10px; margin: 8px; }
+  </style>
+</head>
+<body>
+<table class="t1"><tr><td class="c1">{{ cfg.display_name }} &nbsp;&middot;&nbsp; {{ page_title }}</td>
+<td class="c1" style="text-align:right">{{ cfg.app_version }}</td></tr></table>
+{% block content %}{% endblock %}
+</body>
+</html>

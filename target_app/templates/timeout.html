@@ -1,0 +1,11 @@
+{% extends "_layout.html" %}
+{% block content %}
+<!-- Session expiry. Recoverable: re-establish the session and retry the step. -->
+<div class="warn"><b>Your session has expired.</b></div>
+<table class="t2"><tr><td>
+  <form method="get" action="{{ resume_url }}">
+    <input type="hidden" name="reauth" value="1">
+    <input type="submit" value="Sign In Again">
+  </form>
+</td></tr></table>
+{% endblock %}

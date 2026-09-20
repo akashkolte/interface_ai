@@ -1,0 +1,29 @@
+{% extends "_layout.html" %}
+{% block content %}
+{% if notice %}<div class="warn">{{ notice }}</div>{% endif %}
+<table class="t2"><tr><td>
+  <!-- Balances are addressable only as "the cell next to the cell that says
+       <label>". No ids, no classes that mean anything. This is the table_cell
+       fallback tier in the descriptor. -->
+  <table class="t3">
+    <tr><td class="c2" colspan="2">Member Detail</td></tr>
+    <tr><td class="c3">{{ cfg.label_member_id }}</td><td class="c4">{{ member.member_id }}</td></tr>
+    <tr><td class="c3">Name</td><td class="c4">{{ member.name }}</td></tr>
+    <tr><td class="c3">Status</td><td class="c4">{{ member.status }}</td></tr>
+    <tr><td class="c3">{{ cfg.label_savings_balance }}</td><td class="c4">{{ member.savings_balance }}</td></tr>
+    <tr><td class="c3">Checking Balance</td><td class="c4">{{ member.checking_balance }}</td></tr>
+  </table>
+</td></tr></table>
+<table class="t2"><tr><td>
+  <table class="t3">
+    <tr><td class="c2">Sub-Account</td><td class="c2">Nickname</td><td class="c2">Type</td><td class="c2">Balance</td></tr>
+    {% for sub in member.sub_accounts %}
+    <tr><td class="c3">{{ sub.number }}</td><td class="c3">{{ sub.nickname }}</td>
+        <td class="c3">{{ sub.kind }}</td><td class="c4">{{ sub.balance }}</td></tr>
+    {% else %}
+    <tr><td class="c3" colspan="4">No sub-accounts on file.</td></tr>
+    {% endfor %}
+  </table>
+  <div class="c3"><a href="/member/{{ member.member_id }}/subaccount/new">{{ cfg.label_open_subaccount }}</a></div>
+</td></tr></table>
+{% endblock %}

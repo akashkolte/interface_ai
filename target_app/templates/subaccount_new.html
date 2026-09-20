@@ -1,0 +1,24 @@
+{% extends "_layout.html" %}
+{% block content %}
+{% if error %}<div class="err">{{ error }}</div>{% endif %}
+<table class="t2"><tr><td>
+  <form method="post" action="/member/{{ member.member_id }}/subaccount/submit">
+    <table class="t3">
+      <tr><td class="c2" colspan="2">{{ cfg.label_open_subaccount }} &mdash; {{ member.name }}</td></tr>
+      <tr><td class="c3">{{ cfg.label_account_nickname }}</td>
+          <td class="c3"><input type="text" name="nickname" size="24"></td></tr>
+      <tr><td class="c3">{{ cfg.label_initial_deposit }}</td>
+          <td class="c3"><input type="text" name="deposit" size="12"></td></tr>
+      <tr><td class="c3">Account Type</td>
+          <td class="c3"><select name="kind">
+            <option value="Savings">Savings</option>
+            <option value="Money Market">Money Market</option>
+          </select></td></tr>
+      <tr><td class="c3" colspan="2">
+        <!-- Mutating submit. The safety layer classifies this as CONFIRM. -->
+        <input type="submit" value="{{ cfg.label_confirm_button }}">
+      </td></tr>
+    </table>
+  </form>
+</td></tr></table>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "_layout.html" %}
+{% block content %}
+{% if not member %}
+  <!-- A legitimate business answer, not an application error. The page returns
+       HTTP 200 -- the distinction has to be made from page content. -->
+  <div class="warn">No member found for {{ cfg.label_member_id }} &quot;{{ query }}&quot;.</div>
+{% else %}
+<table class="t2"><tr><td>
+  <table class="t3">
+    <tr><td class="c2">{{ cfg.label_member_id }}</td><td class="c2">Name</td><td class="c2">Status</td></tr>
+    <tr>
+      <td class="c3">{{ member.member_id }}</td>
+      <td class="c3"><a href="/member/{{ member.member_id }}">{{ member.name }}</a></td>
+      <td class="c3">{{ member.status }}</td>
+    </tr>
+  </table>
+</td></tr></table>
+{% endif %}
+{% endblock %}

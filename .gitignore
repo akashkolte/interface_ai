@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Secrets — never commit
+.env
+*.key
+
+# Local run output (evidence/ IS committed; see README)
+.playwright/
+
+# Do not publish the company's assignment brief in a public repo
+*.pdf

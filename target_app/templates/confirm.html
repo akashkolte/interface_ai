@@ -1,0 +1,16 @@
+{% extends "_layout.html" %}
+{% block content %}
+<!-- The checkpoint target: a stable, assertable success condition. -->
+<div class="ok">Sub-account request recorded.</div>
+<table class="t2"><tr><td>
+  <table class="t3">
+    <tr><td class="c2" colspan="2">Confirmation</td></tr>
+    <tr><td class="c3">Reference</td><td class="c4">{{ reference }}</td></tr>
+    <tr><td class="c3">{{ cfg.label_member_id }}</td><td class="c4">{{ member.member_id }}</td></tr>
+    <tr><td class="c3">Sub-Account</td><td class="c4">{{ sub.number }}</td></tr>
+    <tr><td class="c3">{{ cfg.label_account_nickname }}</td><td class="c4">{{ sub.nickname }}</td></tr>
+    <tr><td class="c3">Type</td><td class="c4">{{ sub.kind }}</td></tr>
+    <tr><td class="c3">{{ cfg.label_initial_deposit }}</td><td class="c4">{{ sub.balance }}</td></tr>
+  </table>
+</td></tr></table>
+{% endblock %}

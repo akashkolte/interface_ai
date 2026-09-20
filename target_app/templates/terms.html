@@ -1,0 +1,24 @@
+{% extends "_layout.html" %}
+{% block content %}
+<!--
+  Present only on tenants configured with has_terms_interstitial. An artifact
+  recorded against the base tenant has never seen this page; replaying it on
+  this tenant must either carry a per-tenant override or recognise the
+  interstitial as recoverable and dismiss it.
+-->
+<div class="warn">Disclosure acknowledgement required before opening a new sub-account.</div>
+<table class="t2"><tr><td>
+  <table class="t3">
+    <tr><td class="c3">
+      This institution requires acknowledgement of the share account disclosure
+      before a sub-account may be opened.
+    </td></tr>
+    <tr><td class="c3">
+      <form method="get" action="/member/{{ member.member_id }}/subaccount/new">
+        <input type="hidden" name="acked" value="1">
+        <input type="submit" value="Acknowledge and Continue">
+      </form>
+    </td></tr>
+  </table>
+</td></tr></table>
+{% endblock %}

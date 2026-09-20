@@ -1,0 +1,12 @@
+<!--
+  A frameset, not a single document. Automation must therefore address the right
+  frame before it can address a control; the descriptor carries a frame_path for
+  exactly this reason.
+-->
+<html>
+<head><title>{{ cfg.display_name }} - Core Servicing</title></head>
+<frameset cols="180,*">
+  <frame src="/nav" name="navframe">
+  <frame src="/search" name="contentframe">
+</frameset>
+</html>
