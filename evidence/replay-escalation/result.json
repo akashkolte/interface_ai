@@ -1,0 +1,44 @@
+{
+  "status": "escalated",
+  "capability_id": "member.lookup_savings_balance",
+  "artifact_version": 1,
+  "run_id": "5b36d6a4784e",
+  "tenant_id": null,
+  "outputs": {},
+  "outcome_code": null,
+  "outcome_message": null,
+  "failure": null,
+  "escalation_id": "iv_2d6ccdadcf",
+  "steps": [
+    {
+      "step_id": "enter_member_id",
+      "intent": "Put the member id into the search field",
+      "action": "type '12345' on textbox labelled 'Member ID'",
+      "status": "ok",
+      "tier_used": "label_proximity",
+      "tier_index": 0,
+      "used_fallback": false,
+      "checkpoint_passed": null,
+      "extracted": {},
+      "duration_ms": 8069,
+      "note": ""
+    },
+    {
+      "step_id": "submit_search",
+      "intent": "Run the member search",
+      "action": "click on button named 'Search'",
+      "status": "ok",
+      "tier_used": "accessible_name",
+      "tier_index": 0,
+      "used_fallback": false,
+      "checkpoint_passed": false,
+      "extracted": {},
+      "duration_ms": 0,
+      "note": ""
+    }
+  ],
+  "recoveries": [],
+  "started_at": "2026-09-25T19:54:57.127086Z",
+  "duration_ms": 16749,
+  "evidence_dir": "evidence/replay-escalation"
+}

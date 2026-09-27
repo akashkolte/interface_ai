@@ -1,0 +1,4 @@
+{"seq": 1, "ts": "2026-09-25T19:53:32.040239+00:00", "run_id": "business-outcome", "event": "replay.start", "capability": "member.lookup_savings_balance", "version": 1, "tenant": null, "base_url": "http://localhost:5010", "params": {"memberId": "99999"}}
+{"seq": 2, "ts": "2026-09-25T19:53:40.681243+00:00", "run_id": "business-outcome", "event": "step.ok", "step": "enter_member_id", "action": "type '99999' on textbox labelled 'Member ID'", "tier": "label_proximity", "fallback": false, "extracted": {}}
+{"seq": 3, "ts": "2026-09-25T19:53:48.744930+00:00", "run_id": "business-outcome", "event": "replay.business_outcome", "code": "member_not_found", "message": "No member exists with the supplied member ID."}
+{"seq": 4, "ts": "2026-09-25T19:53:48.779707+00:00", "run_id": "business-outcome", "event": "screenshot", "label": "outcome-member_not_found", "path": "evidence/replay-business-outcome/003-outcome-member_not_found.png"}

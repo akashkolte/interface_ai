@@ -148,6 +148,11 @@ class Surface(Protocol):
     #: reader knows what kind of surface the flow was recorded against.
     surface_kind: str
 
+    def location(self) -> str:
+        """Current address, cheaply. Perceiving the whole tree to read a URL is
+        the single most wasteful thing a run loop can do, and the guardrail only
+        needs the address."""
+
     def observe(self) -> Observation:
         """Perceive current state as a normalized element graph."""
 

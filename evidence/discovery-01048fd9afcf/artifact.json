@@ -1,0 +1,300 @@
+{
+  "schema_version": "1.0",
+  "capability_id": "member.read_savings_balance",
+  "version": 1,
+  "name": "Look up member and read savings balance",
+  "description": "Search for a credit union member by their member ID and retrieve their current savings account balance from the member detail screen.",
+  "goal": "look up member 67890 and read their current savings balance",
+  "target": {
+    "app_id": "coreservicing",
+    "app_version_hint": null,
+    "entry_point": "/",
+    "surface_kind": "web.playwright.chromium"
+  },
+  "inputs": [
+    {
+      "name": "member_id",
+      "type": "string",
+      "required": true,
+      "description": "The unique identifier for the credit union member",
+      "pattern": null,
+      "example": "67890",
+      "sensitive": false
+    }
+  ],
+  "outputs": [
+    {
+      "name": "savings_balance",
+      "type": "money",
+      "description": "The current balance in the member's savings account",
+      "from_step": "read_the_current_savings_balance_for_mem",
+      "required": true
+    }
+  ],
+  "steps": [
+    {
+      "id": "enter_member_id_67890_to_search_for_the_",
+      "intent": "Enter member ID 67890 to search for the member",
+      "action": {
+        "kind": "type",
+        "target": {
+          "primary": {
+            "kind": "label_proximity",
+            "label_text": "Member ID",
+            "control_role": "textbox",
+            "direction": "any",
+            "label_exact": false
+          },
+          "fallbacks": [
+            {
+              "kind": "ordinal",
+              "role": "textbox",
+              "index": 0
+            }
+          ],
+          "scope": {
+            "frame_path": [
+              "contentframe"
+            ],
+            "container_role": null,
+            "container_name": null
+          },
+          "rationale": "The textbox is labeled by nearby 'Member ID' text. Label proximity is resilient to styling changes and rebrand."
+        },
+        "value": "{member_id}",
+        "note": "Enter member ID 67890 to search for the member"
+      },
+      "param_bindings": [
+        "member_id"
+      ],
+      "extracts": [],
+      "checkpoint": null,
+      "risk": "safe",
+      "recovery": [],
+      "optional": false
+    },
+    {
+      "id": "click_search_button_to_look_up_member_67",
+      "intent": "Click Search button to look up member 67890",
+      "action": {
+        "kind": "click",
+        "target": {
+          "primary": {
+            "kind": "accessible_name",
+            "role": "button",
+            "name": "Search",
+            "exact": false
+          },
+          "fallbacks": [
+            {
+              "kind": "ordinal",
+              "role": "button",
+              "index": 0
+            }
+          ],
+          "scope": {
+            "frame_path": [
+              "contentframe"
+            ],
+            "container_role": null,
+            "container_name": null
+          },
+          "rationale": "Button with accessible name 'Search' is robust as it relies on the button's visible text that operators use to identify it"
+        },
+        "value": null,
+        "note": "Click Search button to look up member 67890"
+      },
+      "param_bindings": [],
+      "extracts": [],
+      "checkpoint": {
+        "rules": [
+          {
+            "kind": "text_present",
+            "text": "Search Results",
+            "negate": false,
+            "case_sensitive": false
+          }
+        ],
+        "expected": "The search returns results showing member records matching the provided member ID",
+        "all_required": true,
+        "timeout_ms": 8000
+      },
+      "risk": "safe",
+      "recovery": [],
+      "optional": false
+    },
+    {
+      "id": "click_on_member_name_link_to_view_member",
+      "intent": "Click on member name link to view member details and account information",
+      "action": {
+        "kind": "click",
+        "target": {
+          "primary": {
+            "kind": "accessible_name",
+            "role": "link",
+            "name": "Marcus Oyelaran",
+            "exact": false
+          },
+          "fallbacks": [
+            {
+              "kind": "ordinal",
+              "role": "link",
+              "index": 0
+            }
+          ],
+          "scope": {
+            "frame_path": [
+              "contentframe"
+            ],
+            "container_role": null,
+            "container_name": null
+          },
+          "rationale": "The member name link is identified by its accessible name which is the visible text. This is robust as operators would click on the member's name to access their details."
+        },
+        "value": null,
+        "note": "Click on member name link to view member details and account information"
+      },
+      "param_bindings": [],
+      "extracts": [],
+      "checkpoint": {
+        "rules": [
+          {
+            "kind": "text_present",
+            "text": "Member Detail",
+            "negate": false,
+            "case_sensitive": false
+          }
+        ],
+        "expected": "The member detail screen loads showing account information including savings and checking balances",
+        "all_required": true,
+        "timeout_ms": 8000
+      },
+      "risk": "safe",
+      "recovery": [],
+      "optional": false
+    },
+    {
+      "id": "read_the_current_savings_balance_for_mem",
+      "intent": "Read the current savings balance for member 67890",
+      "action": {
+        "kind": "read",
+        "target": {
+          "primary": {
+            "kind": "table_cell",
+            "row_label": "Savings Balance",
+            "column_header": null,
+            "offset": 1
+          },
+          "fallbacks": [],
+          "scope": {
+            "frame_path": [
+              "contentframe"
+            ],
+            "container_role": null,
+            "container_name": null
+          },
+          "rationale": "The savings balance is in a table cell identified by its row label 'Savings Balance'. This targeting is robust as the row label is the stable identifier that operators use to locate the value."
+        },
+        "value": null,
+        "note": "Read the current savings balance for member 67890"
+      },
+      "param_bindings": [],
+      "extracts": [
+        {
+          "output": "savings_balance",
+          "transform": "money"
+        }
+      ],
+      "checkpoint": null,
+      "risk": "safe",
+      "recovery": [],
+      "optional": false
+    }
+  ],
+  "success": {
+    "rules": [
+      {
+        "kind": "text_present",
+        "text": "Savings Balance",
+        "negate": false,
+        "case_sensitive": false
+      },
+      {
+        "kind": "text_present",
+        "text": "$27,904.10",
+        "negate": false,
+        "case_sensitive": false
+      }
+    ],
+    "expected": "The member detail screen displays the savings balance value, which can be read from the row labeled 'Savings Balance'",
+    "all_required": true,
+    "timeout_ms": 8000
+  },
+  "business_outcomes": [
+    {
+      "code": "member_not_found",
+      "detect": {
+        "rules": [
+          {
+            "kind": "text_present",
+            "text": "No members found",
+            "negate": false,
+            "case_sensitive": false
+          }
+        ],
+        "expected": "screen shows 'No members found'",
+        "all_required": true,
+        "timeout_ms": 8000
+      },
+      "message": "No member record exists with the provided member ID",
+      "terminal": true
+    },
+    {
+      "code": "member_inactive",
+      "detect": {
+        "rules": [
+          {
+            "kind": "text_present",
+            "text": "INACTIVE",
+            "negate": false,
+            "case_sensitive": false
+          }
+        ],
+        "expected": "screen shows 'INACTIVE'",
+        "all_required": true,
+        "timeout_ms": 8000
+      },
+      "message": "The member account exists but has an inactive status",
+      "terminal": true
+    },
+    {
+      "code": "no_savings_account",
+      "detect": {
+        "rules": [
+          {
+            "kind": "text_present",
+            "text": "No sub-accounts on file",
+            "negate": false,
+            "case_sensitive": false
+          }
+        ],
+        "expected": "screen shows 'No sub-accounts on file'",
+        "all_required": true,
+        "timeout_ms": 8000
+      },
+      "message": "The member exists but has no savings account or sub-accounts configured",
+      "terminal": true
+    }
+  ],
+  "risk_profile": "safe",
+  "provenance": {
+    "discovery_run_id": "cd8d3a3ede69",
+    "model": "us.anthropic.claude-sonnet-4-5-20250929-v1:0 (bedrock:us-east-1)",
+    "recorded_at": "2026-09-25T19:45:23.030576Z",
+    "recorded_against_tenant": "base",
+    "recorded_against_base_url": "http://localhost:5010",
+    "steps_explored": 4,
+    "notes": "Successfully looked up member 67890 (Marcus Oyelaran) and read their current savings balance of $27,904.10"
+  },
+  "tenant_overrides": {}
+}

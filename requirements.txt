@@ -1,4 +1,4 @@
-anthropic>=0.40.0
+anthropic[bedrock]>=0.40.0
 playwright>=1.47.0
 pydantic>=2.9.0
 flask>=3.0.0

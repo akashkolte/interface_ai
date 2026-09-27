@@ -1,0 +1,355 @@
+{
+  "schema_version": "1.0",
+  "capability_id": "member.lookup_savings_balance",
+  "version": 1,
+  "name": "Read member savings balance",
+  "description": "Look up a member by ID and return their current savings balance and status.",
+  "goal": "look up member 12345 and read their current savings balance",
+  "target": {
+    "app_id": "coreservicing",
+    "app_version_hint": "7.2",
+    "entry_point": "/",
+    "surface_kind": "web.playwright.chromium"
+  },
+  "inputs": [
+    {
+      "name": "memberId",
+      "type": "string",
+      "required": true,
+      "description": "The institution's member identifier.",
+      "pattern": "\\d{3,10}",
+      "example": "12345",
+      "sensitive": false
+    }
+  ],
+  "outputs": [
+    {
+      "name": "savingsBalance",
+      "type": "money",
+      "description": "Current savings balance as displayed.",
+      "from_step": "read_balance",
+      "required": true
+    },
+    {
+      "name": "memberName",
+      "type": "string",
+      "description": "Member's display name.",
+      "from_step": "read_name",
+      "required": true
+    }
+  ],
+  "steps": [
+    {
+      "id": "enter_member_id",
+      "intent": "Put the member id into the search field",
+      "action": {
+        "kind": "type",
+        "target": {
+          "primary": {
+            "kind": "label_proximity",
+            "label_text": "Member ID",
+            "control_role": "textbox",
+            "direction": "any",
+            "label_exact": false
+          },
+          "fallbacks": [
+            {
+              "kind": "ordinal",
+              "role": "textbox",
+              "index": 0
+            }
+          ],
+          "scope": {
+            "frame_path": [
+              "contentframe"
+            ]
+          },
+          "rationale": "The field has no accessible name (legacy form, no label/for), so proximity to its naming cell is the only stable handle. Ordinal fallback because the search screen has exactly one input."
+        },
+        "value": "{memberId}"
+      },
+      "param_bindings": [
+        "memberId"
+      ],
+      "extracts": [],
+      "risk": "safe",
+      "recovery": [],
+      "optional": false
+    },
+    {
+      "id": "submit_search",
+      "intent": "Run the member search",
+      "action": {
+        "kind": "click",
+        "target": {
+          "primary": {
+            "kind": "accessible_name",
+            "role": "button",
+            "name": "Search",
+            "exact": false
+          },
+          "fallbacks": [],
+          "scope": {
+            "frame_path": [
+              "contentframe"
+            ]
+          },
+          "rationale": "Submit control carries visible text, which the a11y tree exposes as its accessible name; survives restyling."
+        }
+      },
+      "param_bindings": [],
+      "extracts": [],
+      "checkpoint": {
+        "rules": [
+          {
+            "kind": "text_present",
+            "text": "Search Results",
+            "negate": false,
+            "case_sensitive": false
+          }
+        ],
+        "expected": "the search results screen is displayed",
+        "all_required": true,
+        "timeout_ms": 8000
+      },
+      "risk": "safe",
+      "recovery": [],
+      "optional": false
+    },
+    {
+      "id": "open_member",
+      "intent": "Open the matching member record",
+      "action": {
+        "kind": "click",
+        "target": {
+          "primary": {
+            "kind": "table_cell",
+            "row_label": "{memberId}",
+            "column_header": "Name",
+            "offset": 1
+          },
+          "fallbacks": [
+            {
+              "kind": "ordinal",
+              "role": "link",
+              "index": 0
+            }
+          ],
+          "scope": {
+            "frame_path": [
+              "contentframe"
+            ]
+          },
+          "rationale": "Address the row by the id we searched for rather than the member's name, which we do not know before the search returns."
+        }
+      },
+      "param_bindings": [
+        "memberId"
+      ],
+      "extracts": [],
+      "checkpoint": {
+        "rules": [
+          {
+            "kind": "text_present",
+            "text": "Member Detail",
+            "negate": false,
+            "case_sensitive": false
+          }
+        ],
+        "expected": "the member detail screen is displayed",
+        "all_required": true,
+        "timeout_ms": 8000
+      },
+      "risk": "safe",
+      "recovery": [],
+      "optional": false
+    },
+    {
+      "id": "read_name",
+      "intent": "Read the member's name",
+      "action": {
+        "kind": "read",
+        "target": {
+          "primary": {
+            "kind": "table_cell",
+            "row_label": "Name",
+            "offset": 1
+          },
+          "fallbacks": [],
+          "scope": {
+            "frame_path": [
+              "contentframe"
+            ]
+          },
+          "rationale": "Detail grid has no ids; the row label is the only stable key."
+        }
+      },
+      "param_bindings": [],
+      "extracts": [
+        {
+          "output": "memberName",
+          "transform": "strip"
+        }
+      ],
+      "risk": "safe",
+      "recovery": [],
+      "optional": false
+    },
+    {
+      "id": "read_balance",
+      "intent": "Read the savings balance",
+      "action": {
+        "kind": "read",
+        "target": {
+          "primary": {
+            "kind": "table_cell",
+            "row_label": "Savings Balance",
+            "offset": 1
+          },
+          "fallbacks": [],
+          "scope": {
+            "frame_path": [
+              "contentframe"
+            ]
+          },
+          "rationale": "Row-label addressing; the label text is tenant-configurable, so relabelled tenants override this descriptor rather than re-record."
+        }
+      },
+      "param_bindings": [],
+      "extracts": [
+        {
+          "output": "savingsBalance",
+          "transform": "money"
+        }
+      ],
+      "risk": "safe",
+      "recovery": [],
+      "optional": false
+    }
+  ],
+  "success": {
+    "rules": [
+      {
+        "kind": "text_present",
+        "text": "Member Detail",
+        "negate": false,
+        "case_sensitive": false
+      },
+      {
+        "kind": "text_present",
+        "text": "Savings Balance",
+        "negate": false,
+        "case_sensitive": false
+      }
+    ],
+    "expected": "member detail screen showing a savings balance",
+    "all_required": true,
+    "timeout_ms": 8000
+  },
+  "business_outcomes": [
+    {
+      "code": "member_not_found",
+      "detect": {
+        "rules": [
+          {
+            "kind": "text_present",
+            "text": "No member found",
+            "negate": false,
+            "case_sensitive": false
+          }
+        ],
+        "expected": "search returned no matching member",
+        "all_required": true,
+        "timeout_ms": 8000
+      },
+      "message": "No member exists with the supplied member ID.",
+      "terminal": true
+    },
+    {
+      "code": "member_closed",
+      "detect": {
+        "rules": [
+          {
+            "kind": "text_present",
+            "text": "This member record is closed",
+            "negate": false,
+            "case_sensitive": false
+          }
+        ],
+        "expected": "member record is closed",
+        "all_required": true,
+        "timeout_ms": 8000
+      },
+      "message": "The member record is closed; servicing actions are unavailable.",
+      "terminal": false
+    }
+  ],
+  "risk_profile": "safe",
+  "provenance": {
+    "discovery_run_id": "handwritten-fixture",
+    "model": "none (hand-authored)",
+    "recorded_at": "2026-09-25T19:46:56.358183Z",
+    "recorded_against_tenant": "base",
+    "recorded_against_base_url": "http://localhost:5010",
+    "steps_explored": 0,
+    "notes": "Hand-authored to validate the schema against the real flow."
+  },
+  "tenant_overrides": {
+    "creditunion_b": {
+      "tenant_id": "creditunion_b",
+      "base_url": "http://localhost:5011",
+      "app_version_hint": "7.4",
+      "step_targets": {
+        "enter_member_id": {
+          "primary": {
+            "kind": "label_proximity",
+            "label_text": "Account Holder #",
+            "control_role": "textbox",
+            "direction": "any",
+            "label_exact": false
+          },
+          "fallbacks": [],
+          "scope": {
+            "frame_path": [
+              "contentframe"
+            ]
+          },
+          "rationale": "Same product, tenant-configured label."
+        },
+        "submit_search": {
+          "primary": {
+            "kind": "accessible_name",
+            "role": "button",
+            "name": "Find Member",
+            "exact": false
+          },
+          "fallbacks": [],
+          "scope": {
+            "frame_path": [
+              "contentframe"
+            ]
+          },
+          "rationale": "Tenant renamed the submit control."
+        },
+        "read_balance": {
+          "primary": {
+            "kind": "table_cell",
+            "row_label": "Share Savings Balance",
+            "offset": 1
+          },
+          "fallbacks": [],
+          "scope": {
+            "frame_path": [
+              "contentframe"
+            ]
+          },
+          "rationale": "Tenant calls savings 'share savings'."
+        }
+      },
+      "step_checkpoints": {},
+      "extra_recovery": [],
+      "disabled_steps": [],
+      "note": "Riverbend runs CoreServicing 7.4 with relabelled fields."
+    }
+  }
+}

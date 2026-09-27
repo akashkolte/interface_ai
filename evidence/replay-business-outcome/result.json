@@ -1,0 +1,44 @@
+{
+  "status": "business_outcome",
+  "capability_id": "member.lookup_savings_balance",
+  "artifact_version": 1,
+  "run_id": "bbab889ec871",
+  "tenant_id": null,
+  "outputs": {},
+  "outcome_code": "member_not_found",
+  "outcome_message": "No member exists with the supplied member ID.",
+  "failure": null,
+  "escalation_id": null,
+  "steps": [
+    {
+      "step_id": "enter_member_id",
+      "intent": "Put the member id into the search field",
+      "action": "type '99999' on textbox labelled 'Member ID'",
+      "status": "ok",
+      "tier_used": "label_proximity",
+      "tier_index": 0,
+      "used_fallback": false,
+      "checkpoint_passed": null,
+      "extracted": {},
+      "duration_ms": 8063,
+      "note": ""
+    },
+    {
+      "step_id": "submit_search",
+      "intent": "Run the member search",
+      "action": "click on button named 'Search'",
+      "status": "ok",
+      "tier_used": "accessible_name",
+      "tier_index": 0,
+      "used_fallback": false,
+      "checkpoint_passed": null,
+      "extracted": {},
+      "duration_ms": 0,
+      "note": ""
+    }
+  ],
+  "recoveries": [],
+  "started_at": "2026-09-25T19:53:32.040098Z",
+  "duration_ms": 16739,
+  "evidence_dir": "evidence/replay-business-outcome"
+}

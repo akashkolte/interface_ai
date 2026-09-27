@@ -19,7 +19,7 @@ import uuid
 from flask import Flask, render_template, request, redirect, url_for
 
 from target_app.data import MEMBERS, Member, SubAccount, find_member, next_subaccount_number
-from target_app.faults import Fault, active_fault
+from target_app.faults import FAULT_COOKIE, Fault, active_fault
 from target_app.tenants import TENANTS, TenantConfig
 
 SLOW_LOAD_SECONDS = 6.0
@@ -41,7 +41,18 @@ def create_app(tenant_id: str) -> Flask:
     members: dict[str, Member] = {k: v for k, v in MEMBERS.items()}
 
     def fault() -> Fault:
-        return active_fault(request.args.get("fault"))
+        return active_fault(request.args.get("fault"), request.cookies.get(FAULT_COOKIE))
+
+    @app.after_request
+    def _persist_fault(response):
+        """Make ?fault=... stick for the rest of the session."""
+        chosen = request.args.get("fault")
+        if chosen is not None:
+            if chosen in ("", Fault.NONE):
+                response.delete_cookie(FAULT_COOKIE)
+            else:
+                response.set_cookie(FAULT_COOKIE, chosen, samesite="Lax")
+        return response
 
     def page(template: str, title: str, **kw):
         return render_template(template, cfg=cfg, page_title=title, **kw)

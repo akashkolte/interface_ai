@@ -36,6 +36,13 @@ from src.surface.descriptors import ElementDescriptor, ResolutionReport, Scope
 
 DEFAULT_TIMEOUT_MS = 8_000
 
+
+def _is_input(loc) -> bool:
+    try:
+        return loc.evaluate("e => ['INPUT','TEXTAREA','SELECT'].includes(e.tagName)")
+    except Exception:
+        return False
+
 # Finds a form control positioned next to the text that names it, by walking the
 # rendered table structure. Deliberately structural, not selector-based: it
 # survives restyling and renaming because it keys off operator-visible text.
@@ -88,12 +95,19 @@ _LABEL_PROXIMITY_JS = """
 }
 """
 
-# Reads a value cell addressed by its row label and/or column header.
+# Marks the value cell addressed by its row label and/or column header.
+#
+# It marks the CELL rather than returning its text, so the same tier serves both
+# "read the balance out of this row" and "click the link in this row". Which of
+# those is happening is the action's business, not the locator's.
 _TABLE_CELL_JS = """
 (args) => {
   const { rowLabel, columnHeader, offset } = args;
-  const norm = (s) => (s || '').replace(/\\u00a0/g, ' ').trim();
+  const norm = (s) => (s || '').replace(/\u00a0/g, ' ').trim();
   const low = (s) => norm(s).toLowerCase();
+  const mark = (el) => { el.setAttribute('data-cua-cell', '1'); return true; };
+
+  document.querySelectorAll('[data-cua-cell]').forEach(e => e.removeAttribute('data-cua-cell'));
 
   for (const table of document.querySelectorAll('table')) {
     const rows = Array.from(table.rows);
@@ -111,17 +125,18 @@ _TABLE_CELL_JS = """
           if (hIdx !== -1) target = cells[hIdx];
         }
         if (!target) target = cells[idx + (offset || 1)];
-        if (target) return norm(target.textContent);
+        if (target) return mark(target);
       }
     } else if (columnHeader) {
       const headerRow = rows[0];
       const hIdx = Array.from(headerRow.cells).findIndex(c => low(c.textContent) === low(columnHeader));
-      if (hIdx !== -1 && rows[1] && rows[1].cells[hIdx]) return norm(rows[1].cells[hIdx].textContent);
+      if (hIdx !== -1 && rows[1] && rows[1].cells[hIdx]) return mark(rows[1].cells[hIdx]);
     }
   }
-  return null;
+  return false;
 }
 """
+
 
 
 class WebSurface:
@@ -143,6 +158,7 @@ class WebSurface:
         )
         self._page: Page = self._ctx.new_page()
         self._timeout_ms = timeout_ms
+        self._settle_ms = min(1500, timeout_ms)
         self._page.set_default_timeout(timeout_ms)
         self._cdp_cache: dict[str, Any] = {}
         #: Set by a dialog handler; the replay engine reads it to recognise an
@@ -200,6 +216,13 @@ class WebSurface:
                     nxt = child
                     break
             if nxt is None:
+                # The named frame is absent. If the document has no frames at all,
+                # the same screen is simply being served without its frameset --
+                # which happens whenever anyone deep-links a legacy app, and is
+                # also how some tenants are configured. The content is still
+                # there, so address the top document rather than failing.
+                if not self._live(frame.child_frames):
+                    return frame
                 raise SurfaceError(
                     f"frame {part!r} not found under {frame.name or '(main)'} "
                     f"(live frames: {[c.name for c in self._live(self._page.frames)]})"
@@ -229,6 +252,12 @@ class WebSurface:
         return self._cdp_cache["page"]
 
     # ------------------------------------------------------------- perceive
+
+    def location(self) -> str:
+        try:
+            return self._page.url
+        except Exception:
+            return ""
 
     def observe(self, *, include_text: bool = True) -> Observation:
         elements: list[ObservedElement] = []
@@ -379,12 +408,14 @@ class WebSurface:
                 return frame.locator("[data-cua-resolved='1']"), None
 
             case "table_cell":
-                val = frame.evaluate(
+                ok = frame.evaluate(
                     _TABLE_CELL_JS,
                     {"rowLabel": tier.row_label, "columnHeader": tier.column_header,
                      "offset": tier.offset},
                 )
-                return None, val
+                if not ok:
+                    return None, None
+                return frame.locator("[data-cua-cell='1']"), None
 
             case "ordinal":
                 return frame.get_by_role(tier.role).nth(tier.index), None
@@ -412,7 +443,6 @@ class WebSurface:
         if action.kind is ActionKind.NAVIGATE:
             if not action.value:
                 raise SurfaceError("navigate requires a url")
-            self._cdp_cache.clear()
             self._page.goto(action.value, wait_until="domcontentloaded")
             self._settle()
             return ActionResult(ok=True, action=action)
@@ -441,10 +471,11 @@ class WebSurface:
             raise ElementNotFound(action.target, report)
 
         if action.kind is ActionKind.READ:
-            value = el.value if el.value is not None else None
-            if value is None:
-                loc = el.ref
-                value = loc.inner_text().strip() if loc is not None else None
+            loc = el.ref
+            if loc is not None:
+                value = (loc.inner_text() or "").strip() or (loc.input_value() if _is_input(loc) else "")
+            else:
+                value = el.value
             return ActionResult(ok=True, action=action, resolution=report, extracted=value)
 
         if action.kind is ActionKind.WAIT_FOR:
@@ -456,7 +487,11 @@ class WebSurface:
 
         match action.kind:
             case ActionKind.CLICK:
-                loc.click()
+                # A resolved table cell is a container. What an operator clicks is
+                # the control inside it, so prefer an actionable descendant when
+                # one exists and fall back to the cell itself.
+                inner = loc.locator("a, button, input[type=submit], input[type=button]")
+                (inner.first if inner.count() > 0 else loc).click()
             case ActionKind.TYPE:
                 loc.fill(action.value or "")
             case ActionKind.SELECT:
@@ -475,19 +510,23 @@ class WebSurface:
         waited on as well. Without this, an observation taken straight after a
         click reads the previous document.
         """
+        # Best-effort only, and deliberately short. `networkidle` on a frameset
+        # frequently never fires, and waiting the full action budget for it here
+        # would add seconds to every step. The real waiting is done by
+        # `resolve()`, which polls the descriptor chain against a deadline -- so
+        # a slow screen costs time only when something is actually missing.
         try:
-            self._page.wait_for_load_state("networkidle", timeout=self._timeout_ms)
+            self._page.wait_for_load_state("networkidle", timeout=self._settle_ms)
         except PWTimeout:
             pass
         for _, frame in self._frames():
             try:
-                frame.wait_for_load_state("domcontentloaded", timeout=self._timeout_ms)
+                frame.wait_for_load_state("domcontentloaded", timeout=self._settle_ms)
                 frame.wait_for_function(
-                    "() => document.readyState === 'complete'", timeout=self._timeout_ms
+                    "() => document.readyState === 'complete'", timeout=self._settle_ms
                 )
             except Exception:
                 pass
-        self._cdp_cache.clear()
 
     # ----------------------------------------------------------- evidence
 

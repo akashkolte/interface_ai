@@ -57,9 +57,20 @@ HARD_FAULTS = {
 }
 
 
-def active_fault(request_arg: str | None) -> Fault:
-    """Resolve the fault for a request: query param wins, then env, then none."""
-    raw = request_arg or os.environ.get("FAULT") or Fault.NONE
+#: Cookie used to keep a selected fault active for a whole session.
+FAULT_COOKIE = "cua_fault"
+
+
+def active_fault(request_arg: str | None, cookie: str | None = None) -> Fault:
+    """Resolve the fault for a request: query param, then cookie, then env.
+
+    The cookie matters: a flow navigates several pages, and a fault chosen with
+    `?fault=session_timeout` on the entry point has to still be in force when the
+    search form does its own GET three requests later. Without stickiness only
+    the first request of a run could ever be faulted, which is not how a real
+    runtime condition behaves.
+    """
+    raw = request_arg or cookie or os.environ.get("FAULT") or Fault.NONE
     try:
         return Fault(raw)
     except ValueError:

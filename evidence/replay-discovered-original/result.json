@@ -1,0 +1,74 @@
+{
+  "status": "success",
+  "capability_id": "member.read_savings_balance",
+  "artifact_version": 1,
+  "run_id": "627c5d10031f",
+  "tenant_id": null,
+  "outputs": {
+    "savings_balance": "$27,904.10"
+  },
+  "outcome_code": null,
+  "outcome_message": null,
+  "failure": null,
+  "escalation_id": null,
+  "steps": [
+    {
+      "step_id": "enter_the_member_id_67890_to_search_for_",
+      "intent": "Enter the member ID 67890 to search for the member",
+      "action": "type '67890' on textbox labelled 'Member ID'",
+      "status": "ok",
+      "tier_used": "label_proximity",
+      "tier_index": 0,
+      "used_fallback": false,
+      "checkpoint_passed": null,
+      "extracted": {},
+      "duration_ms": 8067,
+      "note": ""
+    },
+    {
+      "step_id": "click_the_search_button_to_look_up_membe",
+      "intent": "Click the Search button to look up member 67890",
+      "action": "click on button named 'Search'",
+      "status": "ok",
+      "tier_used": "accessible_name",
+      "tier_index": 0,
+      "used_fallback": false,
+      "checkpoint_passed": true,
+      "extracted": {},
+      "duration_ms": 8063,
+      "note": ""
+    },
+    {
+      "step_id": "click_on_the_member_name_link_to_view_th",
+      "intent": "Click on the member name link to view the member's account details",
+      "action": "click on cell [row='67890', col='Name']",
+      "status": "ok",
+      "tier_used": "table_cell",
+      "tier_index": 0,
+      "used_fallback": false,
+      "checkpoint_passed": true,
+      "extracted": {},
+      "duration_ms": 8080,
+      "note": ""
+    },
+    {
+      "step_id": "read_the_savings_balance_for_member_6789",
+      "intent": "Read the savings balance for member 67890",
+      "action": "read on cell [row='Savings Balance', col=None]",
+      "status": "ok",
+      "tier_used": "table_cell",
+      "tier_index": 0,
+      "used_fallback": false,
+      "checkpoint_passed": null,
+      "extracted": {
+        "savings_balance": "$27,904.10"
+      },
+      "duration_ms": 8029,
+      "note": ""
+    }
+  ],
+  "recoveries": [],
+  "started_at": "2026-09-25T19:55:14.407144Z",
+  "duration_ms": 40837,
+  "evidence_dir": "evidence/replay-discovered-original"
+}

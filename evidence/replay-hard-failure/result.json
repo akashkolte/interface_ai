@@ -1,0 +1,53 @@
+{
+  "status": "failure",
+  "capability_id": "member.lookup_savings_balance",
+  "artifact_version": 1,
+  "run_id": "5d934539aaa6",
+  "tenant_id": null,
+  "outputs": {},
+  "outcome_code": null,
+  "outcome_message": null,
+  "failure": {
+    "kind": "checkpoint_failed",
+    "step_id": "submit_search",
+    "step_intent": "Run the member search",
+    "expected": "the search results screen is displayed",
+    "observed": "text 'Search Results' was not on screen (required present) || on screen: Member Search | Accounts | Transactions | Admin | Northgate Federal Credit Union \u00a0\u00b7\u00a0 Error\tCoreServicing 7.2 | Application Error | Unhandled exception in MemberSearchServlet. | Reference ERR-AF60A400 \u2014 contact the service desk.",
+    "detail": "",
+    "screenshot": "evidence/replay-hard-failure/002-submit_search-checkpoint.png",
+    "location": "http://localhost:5010/"
+  },
+  "escalation_id": null,
+  "steps": [
+    {
+      "step_id": "enter_member_id",
+      "intent": "Put the member id into the search field",
+      "action": "type '12345' on textbox labelled 'Member ID'",
+      "status": "ok",
+      "tier_used": "label_proximity",
+      "tier_index": 0,
+      "used_fallback": false,
+      "checkpoint_passed": null,
+      "extracted": {},
+      "duration_ms": 8069,
+      "note": ""
+    },
+    {
+      "step_id": "submit_search",
+      "intent": "Run the member search",
+      "action": "click on button named 'Search'",
+      "status": "ok",
+      "tier_used": "accessible_name",
+      "tier_index": 0,
+      "used_fallback": false,
+      "checkpoint_passed": false,
+      "extracted": {},
+      "duration_ms": 0,
+      "note": ""
+    }
+  ],
+  "recoveries": [],
+  "started_at": "2026-09-25T19:53:49.845188Z",
+  "duration_ms": 16727,
+  "evidence_dir": "evidence/replay-hard-failure"
+}

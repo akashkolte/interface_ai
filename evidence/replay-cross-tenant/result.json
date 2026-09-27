@@ -1,0 +1,90 @@
+{
+  "status": "success",
+  "capability_id": "member.lookup_savings_balance",
+  "artifact_version": 1,
+  "run_id": "155340f98cab",
+  "tenant_id": "creditunion_b",
+  "outputs": {
+    "memberName": "Dana Whitfield",
+    "savingsBalance": "$4,182.55"
+  },
+  "outcome_code": null,
+  "outcome_message": null,
+  "failure": null,
+  "escalation_id": null,
+  "steps": [
+    {
+      "step_id": "enter_member_id",
+      "intent": "Put the member id into the search field",
+      "action": "type '12345' on textbox labelled 'Account Holder #'",
+      "status": "ok",
+      "tier_used": "label_proximity",
+      "tier_index": 0,
+      "used_fallback": false,
+      "checkpoint_passed": null,
+      "extracted": {},
+      "duration_ms": 8067,
+      "note": ""
+    },
+    {
+      "step_id": "submit_search",
+      "intent": "Run the member search",
+      "action": "click on button named 'Find Member'",
+      "status": "ok",
+      "tier_used": "accessible_name",
+      "tier_index": 0,
+      "used_fallback": false,
+      "checkpoint_passed": true,
+      "extracted": {},
+      "duration_ms": 8069,
+      "note": ""
+    },
+    {
+      "step_id": "open_member",
+      "intent": "Open the matching member record",
+      "action": "click on cell [row='12345', col='Name']",
+      "status": "ok",
+      "tier_used": "table_cell",
+      "tier_index": 0,
+      "used_fallback": false,
+      "checkpoint_passed": true,
+      "extracted": {},
+      "duration_ms": 8072,
+      "note": ""
+    },
+    {
+      "step_id": "read_name",
+      "intent": "Read the member's name",
+      "action": "read on cell [row='Name', col=None]",
+      "status": "ok",
+      "tier_used": "table_cell",
+      "tier_index": 0,
+      "used_fallback": false,
+      "checkpoint_passed": null,
+      "extracted": {
+        "memberName": "Dana Whitfield"
+      },
+      "duration_ms": 8028,
+      "note": ""
+    },
+    {
+      "step_id": "read_balance",
+      "intent": "Read the savings balance",
+      "action": "read on cell [row='Share Savings Balance', col=None]",
+      "status": "ok",
+      "tier_used": "table_cell",
+      "tier_index": 0,
+      "used_fallback": false,
+      "checkpoint_passed": null,
+      "extracted": {
+        "savingsBalance": "$4,182.55"
+      },
+      "duration_ms": 8033,
+      "note": ""
+    }
+  ],
+  "recoveries": [],
+  "started_at": "2026-09-25T19:54:07.138299Z",
+  "duration_ms": 48873,
+  "evidence_dir": "evidence/replay-cross-tenant"
+}

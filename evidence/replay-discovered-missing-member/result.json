@@ -1,0 +1,53 @@
+{
+  "status": "failure",
+  "capability_id": "member.read_savings_balance",
+  "artifact_version": 1,
+  "run_id": "479bb00337e0",
+  "tenant_id": null,
+  "outputs": {},
+  "outcome_code": null,
+  "outcome_message": null,
+  "failure": {
+    "kind": "target_unresolvable",
+    "step_id": "click_on_the_member_name_link_to_view_th",
+    "step_intent": "Click on the member name link to view the member's account details",
+    "expected": "to click on cell [row='99999', col='Name']",
+    "observed": "could not resolve cell [row='99999', col='Name']: exhausted 2 tier(s) over 8000ms: table_cell: no candidate; ordinal: 0 matches",
+    "detail": "",
+    "screenshot": "evidence/replay-discovered-missing-member/003-click_on_the_member_name_link_to_view_th-unresolvable.png",
+    "location": "http://localhost:5010/"
+  },
+  "escalation_id": null,
+  "steps": [
+    {
+      "step_id": "enter_the_member_id_67890_to_search_for_",
+      "intent": "Enter the member ID 67890 to search for the member",
+      "action": "type '99999' on textbox labelled 'Member ID'",
+      "status": "ok",
+      "tier_used": "label_proximity",
+      "tier_index": 0,
+      "used_fallback": false,
+      "checkpoint_passed": null,
+      "extracted": {},
+      "duration_ms": 8068,
+      "note": ""
+    },
+    {
+      "step_id": "click_the_search_button_to_look_up_membe",
+      "intent": "Click the Search button to look up member 67890",
+      "action": "click on button named 'Search'",
+      "status": "ok",
+      "tier_used": "accessible_name",
+      "tier_index": 0,
+      "used_fallback": false,
+      "checkpoint_passed": true,
+      "extracted": {},
+      "duration_ms": 8066,
+      "note": ""
+    }
+  ],
+  "recoveries": [],
+  "started_at": "2026-09-25T19:56:53.926400Z",
+  "duration_ms": 32779,
+  "evidence_dir": "evidence/replay-discovered-missing-member"
+}
