@@ -1,0 +1,23 @@
+{
+  "id": "iv_475fee16fd",
+  "run_id": "eaef3a95c6f1",
+  "capability_id": "member.lookup_savings_balance",
+  "goal": "",
+  "step_id": "submit_search",
+  "step_intent": "Run the member search",
+  "reason": "checkpoint failed: text 'Search Results' was not on screen (required present) || on screen: Member Search | Accounts | Transactions | Admin | Northgate Federal Credit Union \u00a0\u00b7\u00a0 Error\tCoreServicing 7.2 | Application Error | Unhandled exception in MemberSearchServlet. | Reference ERR-A26E3602 \u2014 contact the service desk.",
+  "location": "http://localhost:5010/",
+  "screen_summary": "Member Search | Accounts | Transactions | Admin | Northgate Federal Credit Union \u00a0\u00b7\u00a0 Error\tCoreServicing 7.2 | Application Error | Unhandled exception in MemberSearchServlet. | Reference ERR-A26E3602 \u2014 contact the service desk.",
+  "screenshot": "evidence/replay-escalation/002-intervention-submit_search.png",
+  "params": {
+    "memberId": "12345"
+  },
+  "suggested_action": "Navigate to the expected screen manually, then hand control back.",
+  "state": "automation",
+  "created_at": "2026-09-27T14:56:55.420132Z",
+  "resolved_at": "2026-09-27T14:57:44.694998Z",
+  "operator_note": "operator",
+  "human_actions": [
+    "navigated: http://localhost:5010/search/run?mid=12345&fault=none"
+  ]
+}

@@ -174,3 +174,123 @@ def test_intervention_request_carries_the_params_the_run_was_using(
     request = pending[0]
     assert request.params, "intervention request must not carry empty params"
     assert request.params["memberId"] == "12345"
+
+
+def test_a_separate_process_can_take_and_hand_back_control(tmp_path):
+    """The operator is not in our process, so the signal must cross one.
+
+    `SessionControl` is a threading primitive, which is fine for the run loop but
+    useless to a human in another terminal. The intervention store is the seam:
+    the `src.cli operator` command writes the transition into the record file and
+    the waiting run picks it up. Simulated here by writing the same fields the
+    CLI writes, from a separate thread, so the test exercises the real path
+    rather than the `auto_resolver` shortcut.
+
+    The store is the signal, never the authority -- the transition is mirrored
+    onto the real SessionControl, so the token rotates and the single-writer
+    invariant still holds in the process that drives the session.
+    """
+    import threading
+    import time
+
+    from src.surface.base import Observation
+
+    store = InterventionStore(tmp_path)
+    control = SessionControl()
+    esc = Escalator(control, store, wait_seconds=15)
+
+    request = esc.raise_intervention(
+        capability_id="member.lookup_savings_balance", run_id="r1", step=None,
+        reason="checkpoint failed", observation=Observation(location="http://localhost:5010/"),
+    )
+    automation_token = control.token
+
+    def operator() -> None:
+        # Exactly what `src.cli operator --take` then `--resume` write.
+        time.sleep(0.5)
+        r = store.get(request.id)
+        r.state = ControlState.HUMAN
+        r.operator_note = "akash"
+        store.put(r)
+        time.sleep(0.5)
+        r = store.get(request.id)
+        r.state = ControlState.RESUMING
+        store.put(r)
+
+    threading.Thread(target=operator, daemon=True).start()
+    assert esc.await_resolution(request) is Resolution.RESUMED
+
+    assert control.state is ControlState.AUTOMATION
+    assert control.token != automation_token, "handing control back must rotate the token"
+    assert store.get(request.id).resolved_at is not None
+
+
+def test_operator_cli_take_then_resume_drives_the_state_machine(tmp_path, monkeypatch):
+    """The CLI itself must produce the transitions, not just the library."""
+    from src import cli
+    from src.surface.base import Observation
+
+    store = InterventionStore(tmp_path)
+    monkeypatch.setattr(cli, "InterventionStore", lambda *a, **k: InterventionStore(tmp_path))
+
+    esc = Escalator(SessionControl(), store, wait_seconds=0)
+    request = esc.raise_intervention(
+        capability_id="c", run_id="r", step=None, reason="stuck",
+        observation=Observation(location="http://localhost:5010/"),
+    )
+
+    assert cli.main(["operator", "--take", request.id, "--operator", "akash"]) == 0
+    assert store.get(request.id).state is ControlState.HUMAN
+
+    assert cli.main(["operator", "--resume", request.id, "--note", "fixed it"]) == 0
+    reloaded = store.get(request.id)
+    assert reloaded.state is ControlState.RESUMING
+    assert reloaded.operator_note == "fixed it"
+
+    # Taking control of something nobody escalated is refused.
+    assert cli.main(["operator", "--take", "iv_doesnotexist"]) == 2
+
+
+def test_operator_navigations_are_recorded_on_the_request(surface, target_servers, tmp_path):
+    """The handoff has to be auditable: what did the human actually do?
+
+    Regression. Sync Playwright delivers page events only while a call into it is
+    in flight, and the wait loop blocks on a threading primitive and a file --
+    so `framenavigated` never fired and `human_actions` came back empty on every
+    real handoff, silently. The watcher now pumps the connection while it waits.
+
+    The operator's navigation is triggered inside the browser (a timer set before
+    the wait begins) rather than from Python. That is both closer to what a human
+    does -- they click, they do not call our API -- and necessary, because sync
+    Playwright cannot be driven from a second thread.
+    """
+    import threading
+    import time
+
+    base = target_servers["base"]
+    store = InterventionStore(tmp_path)
+    esc = Escalator(SessionControl(), store, wait_seconds=20)
+
+    surface.act(Action(kind=ActionKind.NAVIGATE, value=f"{base}/search"))
+    request = esc.raise_intervention(
+        capability_id="c", run_id="r", step=None, reason="stuck",
+        observation=surface.observe(include_text=False), surface=surface,
+    )
+
+    # Stands in for the person typing in the address bar of the live window.
+    surface.page.evaluate(
+        "url => setTimeout(() => { window.location.href = url; }, 800)",
+        f"{base}/search/run?mid=12345&fault=none",
+    )
+
+    def operator() -> None:
+        time.sleep(3.0)          # after the browser-side navigation has landed
+        r = store.get(request.id)
+        r.state = ControlState.RESUMING
+        store.put(r)
+
+    threading.Thread(target=operator, daemon=True).start()
+    assert esc.await_resolution(request, surface) is Resolution.RESUMED
+
+    assert request.human_actions, "the operator's navigation must be recorded"
+    assert any("search/run" in a for a in request.human_actions), request.human_actions

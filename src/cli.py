@@ -23,7 +23,7 @@ from src.agent.discovery import DiscoveryAgent
 from src.agent.llm import BedrockClient, LLMUnavailable
 from src.artifact.store import DEFAULT_DIR, list_capabilities, load, load_latest, save
 from src.errors.taxonomy import ReplayStatus
-from src.escalation.control import InterventionStore, SessionControl
+from src.escalation.control import ControlState, InterventionStore, SessionControl
 from src.escalation.escalator import Escalator
 from src.evidence.recorder import EvidenceRecorder
 from src.replay.engine import ReplayEngine
@@ -92,6 +92,37 @@ def cmd_discover(args) -> int:
 # ------------------------------------------------------------------- replay
 
 
+def _announce_intervention(request) -> None:
+    """Tell the operator what to do, at the moment the run goes quiet.
+
+    Without this the run blocks silently for up to `--wait-seconds` and the
+    intervention id is only printed once it is over -- by which time it is no
+    use to anybody. Printed to stderr so piping the run's result stays clean.
+    """
+    lines = [
+        "",
+        "=" * 72,
+        f"PAUSED -- waiting for a human.   intervention {request.id}",
+        "=" * 72,
+        f"  stopped at: {request.step_id} ({request.step_intent})",
+        f"  why:        {request.reason[:160]}",
+        f"  params:     {request.params}",
+    ]
+    if request.screenshot:
+        lines.append(f"  screenshot: {request.screenshot}")
+    lines += [
+        "",
+        "  In another terminal:",
+        f"    python -m src.cli operator --take {request.id}",
+        "",
+        "  Then fix the screen in the browser window this run left open, and:",
+        f"    python -m src.cli operator --resume {request.id}",
+        "=" * 72,
+        "",
+    ]
+    print("\n".join(lines), file=sys.stderr, flush=True)
+
+
 def cmd_replay(args) -> int:
     artifact = load(args.artifact) if args.artifact else load_latest(args.capability)
     params = json.loads(args.params) if args.params else {}
@@ -101,7 +132,8 @@ def cmd_replay(args) -> int:
     escalator = None
     if args.escalate:
         escalator = Escalator(SessionControl(), InterventionStore(),
-                              wait_seconds=args.wait_seconds)
+                              wait_seconds=args.wait_seconds,
+                              notify=_announce_intervention)
 
     surface = WebSurface(headless=not args.headed)
     try:
@@ -129,6 +161,12 @@ def cmd_replay(args) -> int:
         if result.degraded:
             print("\n  NOTE: run succeeded but degraded (fallback tier or recovery used) "
                   "-- a drift signal worth reviewing.")
+        if result.status is ReplayStatus.ESCALATED and result.failure is not None:
+            if result.failure.detail:
+                print(f"\n  WHY THE HANDOFF DID NOT FINISH THE RUN:\n    {result.failure.detail}")
+            print(f"\n  the step expected: {result.failure.expected}")
+            print(f"  what was on screen: {str(result.failure.observed)[:200]}")
+
         print(f"\nstatus={result.status}  exit={result.exit_code}  evidence={recorder.dir}")
         return result.exit_code
     finally:
@@ -167,8 +205,45 @@ def cmd_catalog(args) -> int:
 
 
 def cmd_operator(args) -> int:
-    """The minimal operator surface. Deliberately bare -- see REPORT.md 'Cuts'."""
+    """The minimal operator surface.
+
+    Deliberately a CLI rather than a web console (see REPORT.md 'Cuts') -- but a
+    real one: `--take` and `--resume` drive the same control-transfer state
+    machine the run enforces, from a different process, on the same live session.
+    """
     store = InterventionStore()
+
+    if args.take or args.resume:
+        request_id = args.take or args.resume
+        request = store.get(request_id)
+        if request is None:
+            print(f"no such intervention: {request_id}", file=sys.stderr)
+            return 2
+
+        if args.take:
+            if request.state is not ControlState.INTERVENTION_REQUESTED:
+                print(f"cannot take control of a request in state {request.state}", file=sys.stderr)
+                return 2
+            request.state = ControlState.HUMAN
+            request.operator_note = args.operator
+            store.put(request)
+            print(f"control taken by {args.operator!r} for {request_id}.")
+            print("The run is paused and will not act until you hand control back.")
+            print("Drive the browser window the run left open, then:")
+            print(f"  python -m src.cli operator --resume {request_id}")
+            return 0
+
+        if request.state not in {ControlState.HUMAN, ControlState.INTERVENTION_REQUESTED}:
+            print(f"cannot hand back from state {request.state}", file=sys.stderr)
+            return 2
+        request.state = ControlState.RESUMING
+        if args.note:
+            request.operator_note = args.note
+        store.put(request)
+        print(f"control handed back for {request_id}.")
+        print("The run re-checks its checkpoint rather than assuming you did what was asked.")
+        return 0
+
     pending = store.pending()
     if not pending:
         print("no pending interventions")
@@ -178,9 +253,12 @@ def cmd_operator(args) -> int:
         print(r.brief())
         if r.screenshot:
             print(f"  screenshot: {r.screenshot}")
+        print(f"  state:      {r.state}")
+        print("  take it:    python -m src.cli operator --take " + r.id)
+        print("  hand back:  python -m src.cli operator --resume " + r.id)
     print("\n" + "=" * 72)
-    print("\nTo take control: open the live browser window the run left open,")
-    print("perform the steps above, then hand control back from that session.")
+    print("\nTake control, fix the screen in the browser window the run left open,")
+    print("then hand control back. The run resumes on the same session.")
     return 0
 
 
@@ -220,7 +298,11 @@ def main(argv: list[str] | None = None) -> int:
     c.add_argument("--dir", default=str(DEFAULT_DIR))
     c.set_defaults(func=cmd_catalog)
 
-    o = sub.add_parser("operator", help="show pending intervention requests")
+    o = sub.add_parser("operator", help="show pending interventions; take or hand back control")
+    o.add_argument("--take", metavar="ID", help="take control of the live session for this request")
+    o.add_argument("--resume", metavar="ID", help="hand control back so the run continues")
+    o.add_argument("--operator", default="operator", help="who is taking control")
+    o.add_argument("--note", default="", help="what you did, recorded on the request")
     o.set_defaults(func=cmd_operator)
 
     args = ap.parse_args(argv)

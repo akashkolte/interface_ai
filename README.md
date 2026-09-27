@@ -170,20 +170,78 @@ not a second copy of the capability.
 
 ### 7. Escalation — a human takes the live session
 
+This one needs two terminals, because the whole point is that the operator is a
+different person in a different process.
+
+**Terminal A** — start a run that cannot finish on its own. `--headed` so you get
+a real browser window to work in:
+
 ```bash
 .venv/bin/python -m src.cli replay \
   --capability member.lookup_savings_balance \
   --params '{"memberId":"12345"}' \
-  --fault app_error_500 --escalate --wait-seconds 120 --headed
+  --fault app_error_500 --escalate --wait-seconds 180 --headed
 ```
 
-The run stops, raises an intervention request, and **hands you the same browser
-window**. Fix the screen by hand, then hand control back; the run re-checks its
-checkpoint and resumes. Pending requests:
+The search screen 500s, `submit_search`'s checkpoint fails, and the run raises an
+intervention and **blocks** — holding the browser window open rather than tearing
+the session down. Before it goes quiet it prints what an operator needs, because
+a run that blocks silently for three minutes is useless to the person meant to
+rescue it:
+
+```
+========================================================================
+PAUSED -- waiting for a human.   intervention iv_03583fdbb7
+========================================================================
+  stopped at: submit_search (Run the member search)
+  why:        checkpoint failed: text 'Search Results' was not on screen
+  params:     {'memberId': '12345'}
+  screenshot: evidence/replay-escalation/002-intervention-submit_search.png
+
+  In another terminal:
+    python -m src.cli operator --take iv_03583fdbb7
+
+  Then fix the screen in the browser window this run left open, and:
+    python -m src.cli operator --resume iv_03583fdbb7
+========================================================================
+```
+
+**Terminal B** — `operator` on its own also lists anything pending, with the same
+commands, so the id never has to be copied out of a scrollback:
 
 ```bash
 .venv/bin/python -m src.cli operator
 ```
+
+Take the wheel (use the id from your own run):
+
+```bash
+.venv/bin/python -m src.cli operator --take iv_03583fdbb7 --operator "your name"
+```
+
+Control is now yours: the automation's token has been rotated, so it cannot act
+even if it wanted to.
+
+**Now fix it by hand, in the browser window Terminal A left open.** Navigate to
+`http://localhost:5010/search/run?mid=12345&fault=none` — the search results
+screen the stuck step expected. It must be *that* screen; jumping ahead to the
+member record leaves the checkpoint unsatisfied.
+
+**Terminal B** — hand control back:
+
+```bash
+.venv/bin/python -m src.cli operator --resume iv_03583fdbb7 --note "cleared the app error"
+```
+
+Terminal A resumes **on the same session**, re-evaluates `submit_search`'s
+checkpoint — it does not take your word for it — and runs to completion.
+
+The control transfer is real and crosses a process boundary: `SessionControl` is
+a threading primitive that a human in another terminal cannot reach, so the
+intervention store is the seam. The operator command writes the transition into
+the record file; the waiting run mirrors it onto the real `SessionControl`, which
+rotates the token. The store is the *signal*, never the authority — a
+hand-edited file cannot let automation act while a human holds control.
 
 ### 8. The capability catalogue an agent would browse
 

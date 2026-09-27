@@ -264,6 +264,24 @@ intervention store and the run returns `ESCALATED` with exit 1.
 
 ---
 
+**The signal has to cross a process boundary.** `SessionControl` is a threading
+primitive — correct for the run loop, useless to a human in another terminal. So
+the `InterventionStore` (a directory of JSON files) doubles as the transfer
+channel: `src.cli operator --take` writes `human` into the record, `--resume`
+writes `resuming`, and the blocked run polls for it and mirrors the transition
+onto the real `SessionControl`.
+
+The store is the **signal, never the authority**. Every transition is applied to
+the in-process `SessionControl` in the process that actually drives the session,
+which is where the token rotates and the single-writer invariant is enforced. A
+stale or hand-edited record cannot grant anything; it can only ask. That
+separation is what makes a file-backed queue safe here, and it is why swapping
+the store for Redis or SQS changes one class and no logic.
+
+On resume the engine **re-evaluates the stuck step's checkpoint** rather than
+trusting that the operator did what was asked. A human who fixes the wrong screen
+gets the run escalated again, not a false success.
+
 ## 6. Safety
 
 **One choke point.** Every action from both loops passes `Policy.check`.
@@ -303,10 +321,14 @@ chance of an accident, which is the realistic threat here.
 Deliberately not built, with the seam left clean:
 
 - **Operator console is CLI-only.** `src.cli operator` lists pending requests
-  with full context; taking control means using the browser window the run left
-  open. The brief explicitly permits a bare operator surface — the **mechanism**
-  (token, state machine, same-session takeover, resume checkpoint) is real and
-  tested. A web console reads the same `InterventionStore`.
+  with full context, and `--take` / `--resume` drive the real control-transfer
+  state machine from a separate process; fixing the screen means using the
+  browser window the run left open. The brief explicitly permits a bare operator
+  surface — the **mechanism** (token rotation, state machine, cross-process
+  signalling, same-session takeover, resume checkpoint) is real and tested. A web
+  console would replace the CLI's two writes to the same `InterventionStore`.
+  What is *not* built is richer operator tooling: no co-browsing, no queue
+  assignment, no audit UI.
 - **No desktop adapter.** The `Surface` protocol is the whole point and is
   exercised by one implementation. A second (UIA/AX) would validate the seam;
   I'd build it next.

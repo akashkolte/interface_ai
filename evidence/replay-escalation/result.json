@@ -1,14 +1,17 @@
 {
-  "status": "escalated",
+  "status": "success",
   "capability_id": "member.lookup_savings_balance",
   "artifact_version": 1,
-  "run_id": "a07e830a14dc",
+  "run_id": "eaef3a95c6f1",
   "tenant_id": null,
-  "outputs": {},
+  "outputs": {
+    "memberName": "Dana Whitfield",
+    "savingsBalance": "$4,182.55"
+  },
   "outcome_code": null,
   "outcome_message": null,
   "failure": null,
-  "escalation_id": "iv_cb9d336937",
+  "escalation_id": "iv_475fee16fd",
   "steps": [
     {
       "step_id": "enter_member_id",
@@ -20,7 +23,7 @@
       "used_fallback": false,
       "checkpoint_passed": null,
       "extracted": {},
-      "duration_ms": 8071,
+      "duration_ms": 8090,
       "note": ""
     },
     {
@@ -31,14 +34,57 @@
       "tier_used": "accessible_name",
       "tier_index": 0,
       "used_fallback": false,
-      "checkpoint_passed": false,
+      "checkpoint_passed": true,
       "extracted": {},
-      "duration_ms": 0,
+      "duration_ms": 57450,
+      "note": ""
+    },
+    {
+      "step_id": "open_member",
+      "intent": "Open the matching member record",
+      "action": "click on cell [row='12345', col='Name']",
+      "status": "ok",
+      "tier_used": "table_cell",
+      "tier_index": 0,
+      "used_fallback": false,
+      "checkpoint_passed": true,
+      "extracted": {},
+      "duration_ms": 582,
+      "note": ""
+    },
+    {
+      "step_id": "read_name",
+      "intent": "Read the member's name",
+      "action": "read on cell [row='Name', col=None]",
+      "status": "ok",
+      "tier_used": "table_cell",
+      "tier_index": 0,
+      "used_fallback": false,
+      "checkpoint_passed": null,
+      "extracted": {
+        "memberName": "Dana Whitfield"
+      },
+      "duration_ms": 8,
+      "note": ""
+    },
+    {
+      "step_id": "read_balance",
+      "intent": "Read the savings balance",
+      "action": "read on cell [row='Savings Balance', col=None]",
+      "status": "ok",
+      "tier_used": "table_cell",
+      "tier_index": 0,
+      "used_fallback": false,
+      "checkpoint_passed": null,
+      "extracted": {
+        "savingsBalance": "$4,182.55"
+      },
+      "duration_ms": 6,
       "note": ""
     }
   ],
   "recoveries": [],
-  "started_at": "2026-09-27T05:12:21.188840Z",
-  "duration_ms": 16748,
+  "started_at": "2026-09-27T14:56:38.593889Z",
+  "duration_ms": 66721,
   "evidence_dir": "evidence/replay-escalation"
 }

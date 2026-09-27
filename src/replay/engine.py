@@ -315,12 +315,27 @@ class ReplayEngine:
                 ) is Resolution.RESUMED:
                     obs_after = self.surface.observe()
                     passed, observed = evaluate(step.checkpoint, obs_after, self.surface)
+                    # Log the verdict on the *human's* work, not just the
+                    # automation's. Without this the log stops at
+                    # `replay.resumed` and an operator whose fix did not take
+                    # has nothing to debug with.
+                    self._log("checkpoint.rechecked_after_handoff",
+                              step=step.id, passed=passed, observed=observed[:300],
+                              location=obs_after.location,
+                              human_actions=self._last_human_actions())
+                    if not passed:
+                        self._shot(f"{step.id}-after-handoff")
 
             trace.checkpoint_passed = passed
             if not passed:
                 result.steps.append(trace)
                 if self.escalator is not None:
                     result.status = ReplayStatus.ESCALATED
+                    result.failure = FailureDetail(
+                        kind=FailureKind.CHECKPOINT_FAILED, step_id=step.id,
+                        step_intent=step.intent, expected=step.checkpoint.expected,
+                        observed=observed, location=obs_after.location,
+                        detail=self._handoff_hint())
                     return self._finish(result, started)
                 return self._fail(result, started, FailureDetail(
                     kind=FailureKind.CHECKPOINT_FAILED, step_id=step.id, step_intent=step.intent,
@@ -445,6 +460,27 @@ class ReplayEngine:
             expected="an action permitted by policy", observed=reason, detail=reason)
         self._log("replay.blocked", step=step_id, reason=reason)
         return self._finish(result, started)
+
+    def _last_human_actions(self) -> list[str]:
+        req = getattr(self.escalator, "last_request", None) if self.escalator else None
+        return list(getattr(req, "human_actions", []) or [])
+
+    def _handoff_hint(self) -> str:
+        """Explain a failed hand-back in terms the operator can act on.
+
+        The commonest mistake is fixing the screen in the wrong window: a headed
+        run opens its own browser, and a fix applied anywhere else leaves the
+        automation's session exactly where it was. An empty navigation record is
+        the tell, so say so rather than repeating the checkpoint text.
+        """
+        if self._last_human_actions():
+            return ("The session was navigated during the handoff but the checkpoint "
+                    "still did not pass -- the screen reached was not the one the step "
+                    "expected.")
+        return ("No navigation was recorded on this session during the handoff. The fix "
+                "was most likely applied in a different browser window: a --headed run "
+                "drives its own browser instance, and changes made anywhere else do not "
+                "affect it. Use the window this run opened.")
 
     def _escalate(self, result: ReplayResult, started: float, step: Step, *,
                   reason: str, observation: Observation) -> ReplayResult:

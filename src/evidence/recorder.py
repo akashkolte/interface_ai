@@ -21,7 +21,11 @@ EVIDENCE_ROOT = Path("evidence")
 
 
 class EvidenceRecorder:
-    """Append-only JSONL log plus screenshots, scoped to one run."""
+    """JSONL log plus screenshots, scoped to exactly one run.
+
+    Append-only *within* a run, truncated at the start of one: the directory is
+    named for a scenario, so re-running that scenario replaces its evidence.
+    """
 
     def __init__(self, run_id: str, kind: str, root: Path = EVIDENCE_ROOT) -> None:
         self.run_id = run_id
@@ -30,6 +34,11 @@ class EvidenceRecorder:
         self.dir.mkdir(parents=True, exist_ok=True)
         self.log_path = self.dir / "run.jsonl"
         self._seq = 0
+        # A label names a *scenario*, so re-running one must replace its evidence
+        # rather than append to it. Opening in "a" mode left this directory
+        # holding two days of interleaved runs, which is worse than no evidence:
+        # a reviewer cannot tell which lines belong to the run they are reading.
+        self.log_path.write_text("")
 
     def event(self, event: str, **fields: Any) -> None:
         """One structured line. Redacted before it touches disk."""

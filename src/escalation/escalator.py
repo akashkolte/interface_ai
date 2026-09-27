@@ -19,6 +19,8 @@ cannot see, so any run that might escalate should launch headed.
 
 from __future__ import annotations
 
+import time
+
 from enum import StrEnum
 
 from src.artifact.schema import Step
@@ -47,6 +49,7 @@ class Escalator:
         *,
         wait_seconds: float = 0.0,
         auto_resolver=None,
+        notify=None,
     ) -> None:
         self.control = control or SessionControl()
         self.store = store or InterventionStore()
@@ -54,8 +57,15 @@ class Escalator:
         #: is what an unattended production run does -- the request is queued and
         #: the run reports ESCALATED rather than holding a browser open forever.
         self.wait_seconds = wait_seconds
+        #: How often the run loop checks the store for a cross-process signal.
+        self.poll_interval = 0.5
         #: Test/demo hook: a callable that plays the operator's part.
         self.auto_resolver = auto_resolver
+        #: Called once, just before the run blocks on a human. The run is about
+        #: to go silent for up to `wait_seconds`, so whoever owns the UI needs a
+        #: chance to tell the operator what to do. Kept as a callback rather than
+        #: a print so the library stays quiet and the CLI owns presentation.
+        self.notify = notify
         self.last_request: InterventionRequest | None = None
 
     # ------------------------------------------------------------------ api
@@ -120,8 +130,10 @@ class Escalator:
         else:
             if self.wait_seconds <= 0:
                 return Resolution.UNRESOLVED
+            if self.notify is not None:
+                self.notify(request)
             watcher.start()
-            got = self.control.wait_for_hand_back(self.wait_seconds)
+            got = self._wait_for_operator(request, watcher)
             watcher.stop()
             if not got:
                 return Resolution.UNRESOLVED
@@ -140,6 +152,55 @@ class Escalator:
             recorder.event("intervention.resumed", intervention=request.id,
                            human_actions=watcher.actions)
         return Resolution.RESUMED
+
+    def _wait_for_operator(self, request: InterventionRequest, watcher=None) -> bool:
+        """Block until a human hands control back, from this process or another.
+
+        Two signalling paths, because a real operator is not in our process:
+
+        * **in-process** -- an embedded console or a test calls `take()` and
+          `hand_back()` directly, setting the control event.
+        * **cross-process** -- the `src.cli operator` command in another terminal
+          writes the transition into the intervention record. The store is a
+          directory of JSON files precisely so a separate process can do this,
+          and so an escalation outlives the run that raised it.
+
+        The store is the *signal*, never the authority: an operator's write is
+        mirrored onto the real `SessionControl` here, so the token is rotated and
+        the single-writer invariant is enforced in the process that actually
+        drives the session. A stale or hand-edited file cannot let automation act
+        while a human holds the wheel.
+        """
+        deadline = time.monotonic() + self.wait_seconds
+        took = False
+
+        while time.monotonic() < deadline:
+            # Doubles as the poll delay: returns early the moment it is set.
+            if self.control.wait_for_hand_back(self.poll_interval):
+                return True
+
+            if watcher is not None:
+                watcher.pump()   # deliver the operator's navigations
+
+            stored = self.store.get(request.id)
+            if stored is None:
+                continue
+
+            if stored.state is ControlState.HUMAN and not took:
+                self.control.take(stored.operator_note or "operator")
+                request.operator_note = stored.operator_note
+                took = True
+
+            if stored.state is ControlState.RESUMING:
+                if not took:
+                    # Operator resumed without an explicit take; the transition
+                    # still has to pass through HUMAN so the token rotates.
+                    self.control.take(stored.operator_note or "operator")
+                request.operator_note = stored.operator_note
+                self.control.hand_back()
+                return True
+
+        return False
 
     # -------------------------------------------------------------- helpers
 
@@ -184,6 +245,23 @@ class _HumanActionWatcher:
             self._page.on("framenavigated", on_nav)
         except Exception:
             self._handler = None
+
+    def pump(self) -> None:
+        """Give the driver a chance to deliver queued events.
+
+        Sync Playwright dispatches page events only while a call into it is in
+        flight. The run loop waits on a threading primitive and a file, so
+        without this the `framenavigated` handler never runs and the operator's
+        navigation is never recorded. A title read is the cheapest call that
+        pumps the connection, and it observes rather than drives -- the human
+        still holds control.
+        """
+        if self._page is None:
+            return
+        try:
+            self._page.title()
+        except Exception:
+            pass
 
     def stop(self) -> None:
         if self._page is not None and self._handler is not None:
