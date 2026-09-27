@@ -148,3 +148,29 @@ def test_unattended_run_reports_escalated_rather_than_hanging(surface, target_se
     assert result.status is ReplayStatus.ESCALATED
     assert result.exit_code == 1
     assert InterventionStore(tmp_path).pending(), "the request must be queued for an operator"
+
+
+def test_intervention_request_carries_the_params_the_run_was_using(
+    surface, target_servers, tmp_path
+):
+    """An intervention must say what the run was working on.
+
+    The brief requires the request to carry enough context to act on it, and
+    which member the run was servicing is the first thing an operator needs.
+    Values are redacted on the way in, so a sensitive parameter never reaches
+    the stored record even though the operator still sees the shape of the call.
+    """
+    artifact = load_latest("member.lookup_savings_balance")
+    base = target_servers["base"]
+    store = InterventionStore(tmp_path)
+    esc = Escalator(SessionControl(), store, wait_seconds=0)
+    engine = ReplayEngine(surface, Policy.for_local_targets(base), escalator=esc)
+
+    surface.act(Action(kind=ActionKind.NAVIGATE, value=f"{base}/search?fault=app_error_500"))
+    engine.run(artifact, {"memberId": "12345"}, base_url=base)
+
+    pending = store.pending()
+    assert pending, "expected a queued intervention"
+    request = pending[0]
+    assert request.params, "intervention request must not carry empty params"
+    assert request.params["memberId"] == "12345"

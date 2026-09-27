@@ -78,19 +78,63 @@ running the same vendor product, configured differently:
 ```
 
 Writes a capability artifact to `artifacts/` and the full transcript,
-screenshots and structured log to `evidence/discovery-<id>/`.
+screenshots and structured log to `evidence/discovery-<id>/`. It prints the
+artifact path and the capability contract it compiled:
 
-### 2. Replay — deterministic, no model
+```
+artifact: artifacts/member.read_savings_balance.v1.json
+  capability: member.read_savings_balance v1
+  inputs:     ['member_id']
+  outputs:    ['savings_balance']
+```
+
+The capability id and parameter names are **chosen by the compiling model**, so
+they vary between discovery runs — take them from that output rather than from
+this page.
+
+### 2. Replay what discovery just produced — deterministic, no model
 
 ```bash
 .venv/bin/python -m src.cli replay \
-  --capability member.lookup_savings_balance \
-  --params '{"memberId":"12345"}'
+  --artifact artifacts/member.read_savings_balance.v1.json \
+  --params '{"member_id":"67890"}'
 ```
 
-→ `SUCCESS  memberName=Dana Whitfield, savingsBalance=$4,182.55`, exit **0**.
+→ `status=success  exit=0`, `savings_balance=$27,904.10`. No model is consulted.
 
-### 3. A business outcome is *not* a failure
+The artifact was recorded against member `67890`, but the compiler
+parameterised the literal, so it generalises:
+
+```bash
+.venv/bin/python -m src.cli replay \
+  --artifact artifacts/member.read_savings_balance.v1.json \
+  --params '{"member_id":"12345"}'
+```
+
+→ `savings_balance=$4,182.55` — a member the discovery run never saw.
+
+### 3. Why the remaining demos use a hand-curated artifact
+
+Steps 4–7 use `member.lookup_savings_balance`, whose provenance reads
+`none (hand-authored)`. That is deliberate, and the reason is the most
+interesting finding in this project.
+
+A discovery run only ever observes the **happy path**. The run above searched
+for a member that exists, so the compiling model never saw the "not found"
+screen — and when it declared a `member_not_found` business outcome, it
+*guessed* the wording, emitting `"No members found"` where the application
+actually renders `"No member found"`. The literal never matches, the outcome
+rule never fires, and the replay degrades into a hard failure. That run is
+committed at `evidence/replay-discovered-missing-member/` and is analysed in
+**REPORT.md §3**.
+
+So the discovered artifact is what the system genuinely produces, and the
+hand-curated one carries the corrected strings needed to exercise the branches
+discovery never visited. Keeping both, rather than quietly fixing one string,
+is the point: it is the argument for the `draft → approved` gate listed first
+under **REPORT.md §7**.
+
+### 4. A business outcome is *not* a failure
 
 ```bash
 .venv/bin/python -m src.cli replay \
@@ -101,7 +145,7 @@ screenshots and structured log to `evidence/discovery-<id>/`.
 → `BUSINESS OUTCOME  member_not_found`, exit **0**. The capability worked; the
 answer is that no such member exists.
 
-### 4. A hard failure is debuggable
+### 5. A hard failure is debuggable
 
 ```bash
 .venv/bin/python -m src.cli replay \
@@ -112,7 +156,7 @@ answer is that no such member exists.
 → `FAILURE [checkpoint_failed]` naming the step, what was **expected**, what was
 **observed**, and a screenshot. Exit **1**.
 
-### 5. Cross-tenant reuse — one artifact, a sparse override
+### 6. Cross-tenant reuse — one artifact, a sparse override
 
 ```bash
 .venv/bin/python -m src.cli replay \
@@ -124,7 +168,7 @@ answer is that no such member exists.
 `target_unresolvable`, which is the point: the override is a three-line patch,
 not a second copy of the capability.
 
-### 6. Escalation — a human takes the live session
+### 7. Escalation — a human takes the live session
 
 ```bash
 .venv/bin/python -m src.cli replay \
@@ -141,7 +185,7 @@ checkpoint and resumes. Pending requests:
 .venv/bin/python -m src.cli operator
 ```
 
-### 7. The capability catalogue an agent would browse
+### 8. The capability catalogue an agent would browse
 
 ```bash
 .venv/bin/python -m src.cli catalog

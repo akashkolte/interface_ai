@@ -47,6 +47,7 @@ from src.evidence.recorder import EvidenceRecorder
 from src.replay.checkpoints import evaluate
 from src.escalation.escalator import Resolution
 from src.safety.policy import Policy
+from src.safety.redaction import redact_mapping
 from src.surface.base import Action, ActionKind, ElementNotFound, Observation, Surface
 
 _PLACEHOLDER = re.compile(r"\{([a-zA-Z_][a-zA-Z0-9_]*)\}")
@@ -122,12 +123,18 @@ class ReplayEngine:
             tenant_id=tenant_id,
             evidence_dir=str(self.recorder.dir) if self.recorder else None,
         )
+        self._redacted_params: dict[str, str] = {}
         self._log("replay.start", capability=resolved.capability_id, version=resolved.version,
                   tenant=tenant_id, base_url=base, params=params)
 
         # 1. Typed input validation, before anything is driven.
         try:
             bound = self._bind_params(resolved, params)
+            # An intervention request has to carry enough context for a human to
+            # act on it, and which member the run was working on is the first
+            # thing an operator needs. Redacted on the way in, not on the way
+            # out, so nothing sensitive is ever held on the instance.
+            self._redacted_params = redact_mapping(bound)
         except ValueError as exc:
             return self._fail(result, started, FailureDetail(
                 kind=FailureKind.INPUT_INVALID,
@@ -445,7 +452,7 @@ class ReplayEngine:
         request = self.escalator.raise_intervention(
             capability_id=result.capability_id, run_id=result.run_id, step=step,
             reason=reason, observation=observation, surface=self.surface,
-            recorder=self.recorder)
+            recorder=self.recorder, params=getattr(self, "_redacted_params", {}))
         result.status = ReplayStatus.ESCALATED
         result.escalation_id = request.id
         self._log("replay.escalated", step=step.id, reason=reason, intervention=request.id)
@@ -462,7 +469,7 @@ class ReplayEngine:
         request = self.escalator.raise_intervention(
             capability_id=result.capability_id, run_id=result.run_id, step=step,
             reason=reason, observation=observation, surface=self.surface,
-            recorder=self.recorder)
+            recorder=self.recorder, params=getattr(self, "_redacted_params", {}))
         result.escalation_id = request.id
         self._log("replay.escalated", step=step.id, reason=reason, intervention=request.id)
 

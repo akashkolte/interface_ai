@@ -2,7 +2,7 @@
   "status": "success",
   "capability_id": "member.read_savings_balance",
   "artifact_version": 1,
-  "run_id": "627c5d10031f",
+  "run_id": "ecf32466f22c",
   "tenant_id": null,
   "outputs": {
     "savings_balance": "$27,904.10"
@@ -22,7 +22,7 @@
       "used_fallback": false,
       "checkpoint_passed": null,
       "extracted": {},
-      "duration_ms": 8067,
+      "duration_ms": 8089,
       "note": ""
     },
     {
@@ -35,7 +35,7 @@
       "used_fallback": false,
       "checkpoint_passed": true,
       "extracted": {},
-      "duration_ms": 8063,
+      "duration_ms": 8068,
       "note": ""
     },
     {
@@ -48,7 +48,7 @@
       "used_fallback": false,
       "checkpoint_passed": true,
       "extracted": {},
-      "duration_ms": 8080,
+      "duration_ms": 8086,
       "note": ""
     },
     {
@@ -63,12 +63,12 @@
       "extracted": {
         "savings_balance": "$27,904.10"
       },
-      "duration_ms": 8029,
+      "duration_ms": 8035,
       "note": ""
     }
   ],
   "recoveries": [],
-  "started_at": "2026-09-25T19:55:14.407144Z",
-  "duration_ms": 40837,
+  "started_at": "2026-09-27T05:08:59.916084Z",
+  "duration_ms": 40940,
   "evidence_dir": "evidence/replay-discovered-original"
 }
