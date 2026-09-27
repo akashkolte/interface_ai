@@ -261,6 +261,7 @@ the expected state still isn't there (bounded at two per step). For a
 state rather than re-running the mutation. Proven end to end in
 `evidence/replay-escalation/`: raised → taken by a human in another process →
 navigation recorded → `checkpoint.rechecked_after_handoff passed=True` → success.
+Recorded in `evidence/escalation-handoff.mp4`.
 
 **What the human did** is captured at navigation granularity. Deliberately not
 full input capture: keylogging an operator inside a banking session is exactly

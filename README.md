@@ -170,6 +170,12 @@ not a second copy of the capability.
 
 ### 7. Escalation — a human takes the live session
 
+**Recorded end to end:** [`evidence/escalation-handoff.mp4`](evidence/escalation-handoff.mp4)
+(3 min, no audio) — the run getting stuck, an operator taking control from a
+separate terminal, the screen fixed by hand in the same browser window, control
+handed back, and the run completing. The resulting artefacts are
+`evidence/replay-escalation/` and `evidence/interventions/`.
+
 This one needs two terminals, because the whole point is that the operator is a
 different person in a different process.
 
