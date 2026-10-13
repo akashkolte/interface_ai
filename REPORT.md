@@ -161,8 +161,8 @@ conclusions followed:
   its *outcome rules* need human review before unattended use. That gate is first
   under Cuts, and this run is why.
 
-**Two real bugs found by running against the frameset**, both now regression
-tests, both illustrative of what "deterministic" actually costs:
+**Three real bugs found by running it, not reading it**, all now regression
+tests, all illustrative of what "deterministic" actually costs:
 
 - **Detached frames.** After a cross-document navigation Playwright still exposes
   the *previous* document's children via `main_frame.child_frames`. Frame lookup
@@ -172,6 +172,14 @@ tests, both illustrative of what "deterministic" actually costs:
 - **`Locator.count()` does not auto-wait.** One resolution pass could miss an
   element milliseconds late and wrongly demote to a fallback tier, or fail.
   Resolution is now deadline-driven.
+- **Recovery was only consulted when an action failed.** The recoverable class
+  was designed and typed, but no artifact declared a rule and no test exercised
+  one. The first test did not pass: a session-expiry page arrives *after* the
+  click on Search succeeds, so the rule was never asked, and the run ended as a
+  hard failure with `recoveries=[]`. Declared rules are now also consulted
+  before a failed checkpoint is escalated or reported, bounded by each rule's
+  attempt budget. `evidence/replay-recovery/` shows the run recovering and
+  completing, flagged `degraded`.
 
 **A nastier class: bugs in the evidence, not the behaviour.** The two above
 announce themselves. The next two did not — the feature worked and the *record*
@@ -277,6 +285,8 @@ record, `--resume` writes `resuming`, and the blocked run mirrors the transition
 onto the real `SessionControl`. The store is the **signal, never the authority**:
 every transition is applied in the process that drives the session, where the
 token rotates. A hand-edited record can ask for control; it cannot grant it.
+Writes are atomic (write, then rename): the run polls the record while the
+operator rewrites it, and a torn read crashed a handoff in testing.
 Swapping the store for Redis or SQS changes one class and no logic.
 
 ## 6. Safety
@@ -338,6 +348,11 @@ Deliberately not built, with the seam left clean:
 - **Artifact storage is files.** No registry, no concurrent-writer story.
 - **Single LLM provider.** Bedrock only, isolated in one file.
 - **Human action capture is navigation-level**, for the privacy reason above.
+- **Recovery is proven for one condition only**, session expiry. The target
+  app declares an `unexpected_confirm_dialog` fault but never renders it.
+  `Checkpoint.timeout_ms` is declared but unused: checkpoints are evaluated
+  once, so slowness is absorbed by deadline-driven resolution, not by the
+  checkpoint.
 
 **What I'd do next, in order:** (1) the `draft → approved` gate, because
 unattended replay of an unreviewed artifact is the most dangerous thing here;

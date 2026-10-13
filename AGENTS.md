@@ -419,6 +419,10 @@ End-to-end checks, each producing evidence:
 - When behaviour changes, add or update a test. The two regressions above are
   the model: name the failure mode in the test docstring.
 - Comments explain **why**, not what. The reasoning is the deliverable here.
+- **Work on the active branch.** Commit to the branch that is checked out; only
+  create a separate branch or worktree when several agents must work in
+  parallel. This lives here because cloud sessions cannot read the owner's
+  user-level `CLAUDE.md`.
 
 ---
 

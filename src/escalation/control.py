@@ -19,6 +19,7 @@ fails loudly instead of fighting them for the mouse.
 from __future__ import annotations
 
 import json
+import os
 import threading
 import uuid
 from datetime import datetime, timezone
@@ -101,7 +102,12 @@ class InterventionStore:
 
     def put(self, request: InterventionRequest) -> Path:
         dest = self.path(request.id)
-        dest.write_text(json.dumps(redact_deep(request.model_dump(mode="json")), indent=2) + "\n")
+        # Write-then-rename: the blocked run polls this file while the operator
+        # CLI rewrites it, and a plain write is visible half-done. The temp name
+        # stays outside the `iv_*.json` glob so `pending()` never lists it.
+        tmp = dest.with_name(f".{dest.name}.tmp")
+        tmp.write_text(json.dumps(redact_deep(request.model_dump(mode="json")), indent=2) + "\n")
+        os.replace(tmp, dest)
         return dest
 
     def get(self, request_id: str) -> InterventionRequest | None:
