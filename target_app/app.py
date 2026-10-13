@@ -16,7 +16,7 @@ from __future__ import annotations
 import time
 import uuid
 
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect
 
 from target_app.data import MEMBERS, Member, SubAccount, find_member, next_subaccount_number
 from target_app.faults import FAULT_COOKIE, Fault, active_fault
@@ -52,6 +52,11 @@ def create_app(tenant_id: str) -> Flask:
                 response.delete_cookie(FAULT_COOKIE)
             else:
                 response.set_cookie(FAULT_COOKIE, chosen, samesite="Lax")
+        elif (request.args.get("reauth") == "1"
+              and request.cookies.get(FAULT_COOKIE) == Fault.SESSION_TIMEOUT):
+            # Signing in again ends the expiry. Without this every later page in
+            # the flow would expire too, which no real session does.
+            response.delete_cookie(FAULT_COOKIE)
         return response
 
     def page(template: str, title: str, **kw):
@@ -63,10 +68,18 @@ def create_app(tenant_id: str) -> Flask:
             detail=detail, reference=f"ERR-{uuid.uuid4().hex[:8].upper()}",
         ), status
 
-    def maybe_timeout(resume_url: str):
-        """Session expiry is checked before the real handler runs."""
+    def maybe_timeout():
+        """Session expiry is checked before the real handler runs.
+
+        Signing in again returns to the request that expired, query included, as
+        real servicing apps do. Dropping the query would turn a recoverable
+        interstitial into lost work (a search with no member id).
+        """
         if fault() is Fault.SESSION_TIMEOUT and request.args.get("reauth") != "1":
-            return page("timeout.html", "Session Expired", resume_url=resume_url)
+            # `fault` is dropped too: resuming must not re-inject the expiry.
+            resume_args = {k: v for k, v in request.args.items() if k not in ("reauth", "fault")}
+            return page("timeout.html", "Session Expired",
+                        resume_url=request.path, resume_args=resume_args)
         return None
 
     # ---------------------------------------------------------------- routes
@@ -88,7 +101,7 @@ def create_app(tenant_id: str) -> Flask:
         f = fault()
         if f is Fault.APP_ERROR_500:
             return app_error("Unhandled exception in MemberSearchServlet.")
-        if (t := maybe_timeout(url_for("search"))) is not None:
+        if (t := maybe_timeout()) is not None:
             return t
         if f is Fault.SLOW_LOAD:
             time.sleep(SLOW_LOAD_SECONDS)
@@ -108,7 +121,7 @@ def create_app(tenant_id: str) -> Flask:
                 detail="You do not have permission to view this member record.",
                 reference=f"SEC-{uuid.uuid4().hex[:8].upper()}",
             ), 403
-        if (t := maybe_timeout(url_for("member_detail", member_id=member_id))) is not None:
+        if (t := maybe_timeout()) is not None:
             return t
         if f is Fault.SLOW_LOAD:
             time.sleep(SLOW_LOAD_SECONDS)

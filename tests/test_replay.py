@@ -86,6 +86,40 @@ def test_application_error_is_a_hard_failure_with_debuggable_detail(
     assert "Application Error" in f.observed, "the report must say what was actually on screen"
 
 
+# --------------------------------------------------------------- recoverable
+
+
+def test_session_expiry_after_a_successful_click_is_recovered(engine, artifact, target_servers, surface):
+    """Regression: recovery rules were consulted only when an action FAILED.
+
+    An interstitial lands after the click succeeds -- the click on Search works,
+    the screen that comes back is "session expired" -- so the declared rule was
+    never asked and the run ended as a hard failure with `recoveries=[]`.
+    """
+    _with_fault(surface, target_servers["base"], "session_timeout")
+    r = engine.run(artifact, {"memberId": "12345"}, base_url=target_servers["base"])
+    assert r.status is ReplayStatus.SUCCESS and r.exit_code == 0
+    assert r.outputs["savingsBalance"] == "$4,182.55", "re-auth must resume the search, not lose it"
+    assert [(e.step_id, e.rule_name) for e in r.recoveries] == [("submit_search", "session_expired")]
+    assert r.degraded, "a recovered run is a drift signal, not a clean pass"
+
+
+def test_recovery_that_does_not_clear_is_bounded_then_fails_with_detail(
+    engine, artifact, target_servers, surface
+):
+    """A rule whose actions don't clear the condition must not loop forever."""
+    stuck = artifact.model_copy(deep=True)
+    for step in stuck.steps:
+        for rule in step.recovery:
+            rule.actions, rule.max_attempts = [], 2      # detects expiry, does nothing about it
+    _with_fault(surface, target_servers["base"], "session_timeout")
+    r = engine.run(stuck, {"memberId": "12345"}, base_url=target_servers["base"])
+    assert r.status is ReplayStatus.FAILURE
+    assert r.failure.kind is FailureKind.CHECKPOINT_FAILED and r.failure.step_id == "submit_search"
+    assert "session has expired" in r.failure.observed
+    assert len(r.recoveries) == 2, "exactly the declared attempt budget, then stop"
+
+
 def test_bad_input_is_rejected_before_anything_is_driven(engine, artifact, target_servers):
     r = engine.run(artifact, {"memberId": "not-an-id"}, base_url=target_servers["base"])
     assert r.status is ReplayStatus.FAILURE

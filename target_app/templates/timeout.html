@@ -5,6 +5,7 @@
 <table class="t2"><tr><td>
   <form method="get" action="{{ resume_url }}">
     <input type="hidden" name="reauth" value="1">
+    {% for name, value in resume_args.items() %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
     <input type="submit" value="Sign In Again">
   </form>
 </td></tr></table>

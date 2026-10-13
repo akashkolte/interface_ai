@@ -92,6 +92,38 @@ def test_secrets_never_reach_a_stored_intervention(tmp_path):
     assert "123-45-6789" not in raw
 
 
+def test_a_reader_never_sees_a_half_written_record(tmp_path):
+    """Regression: the blocked run polls the record while the operator rewrites it.
+
+    `write_text` truncates the file before writing, so a poll landing between
+    the two read an empty file and crashed the handoff mid-takeover. The store is
+    the cross-process channel, so its writes must be atomic.
+    """
+    import threading
+
+    from src.surface.base import Observation
+    store = InterventionStore(tmp_path)
+    req = Escalator(SessionControl(), store).raise_intervention(
+        capability_id="c.x", run_id="r", step=None, reason="stuck",
+        observation=Observation(location="u"))
+
+    stop = threading.Event()
+
+    def operator() -> None:
+        while not stop.is_set():
+            store.put(req)
+
+    writer = threading.Thread(target=operator, daemon=True)
+    writer.start()
+    try:
+        for _ in range(2000):
+            assert store.get(req.id) is not None    # a torn read raises here
+    finally:
+        stop.set()
+        writer.join()
+    assert [p.name for p in tmp_path.iterdir()] == [f"{req.id}.json"], "no temp files left behind"
+
+
 # --------------------------------------------- live cede / act / resume
 
 

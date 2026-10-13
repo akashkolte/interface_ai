@@ -13,7 +13,8 @@ Order of checks inside a step matters, and is deliberate:
   4. business outcome -- BEFORE treating anything as an error, because "no such
                           member" looks exactly like a failed checkpoint if you
                           ask the questions the other way round
-  5. recovery    -- bounded, declared, then retry the step
+  5. recovery    -- bounded, declared; consulted when the action fails AND when
+                    a successful action lands on an interstitial
   6. checkpoint  -- prove we arrived
   7. extract     -- collect declared outputs
 
@@ -252,7 +253,7 @@ class ReplayEngine:
             if (hit := self._match_outcome(artifact, obs)) is not None and hit.terminal:
                 return self._business(result, started, hit)
 
-            if (cleared := self._try_recover(step, obs, result)) :
+            if (rule := self._try_recover(step, obs, result)) is not None and rule.retry_step:
                 continue
             if step.optional:
                 result.steps.append(StepTrace(
@@ -300,6 +301,23 @@ class ReplayEngine:
 
         if step.checkpoint is not None:
             passed, observed = evaluate(step.checkpoint, obs_after, self.surface)
+
+            # Interstitials such as session expiry appear AFTER the action
+            # succeeded, so declared recovery rules get their turn here too --
+            # before human help and before failure. Bounded: `_try_recover`
+            # returns None once the matching rule's attempt budget is spent.
+            while not passed and (rule := self._try_recover(step, obs_after, result)) is not None:
+                if rule.retry_step:
+                    try:
+                        res = self._dispatch(action)
+                    except Exception as exc:
+                        self._log("recovery.retry_failed", step=step.id, rule=rule.name,
+                                  error=f"{type(exc).__name__}: {exc}")
+                obs_after = self.surface.observe()
+                if (hit := self._match_outcome(artifact, obs_after)) is not None and hit.terminal:
+                    result.steps.append(trace)
+                    return self._business(result, started, hit)
+                passed, observed = evaluate(step.checkpoint, obs_after, self.surface)
 
             # A failed checkpoint is a candidate for human help before it is
             # declared a failure: the operator may be able to reach the expected
@@ -392,8 +410,9 @@ class ReplayEngine:
                 return rule
         return None
 
-    def _try_recover(self, step: Step, obs: Observation, result: ReplayResult) -> bool:
-        """Apply the first matching recovery rule. Bounded by its own attempt budget."""
+    def _try_recover(self, step: Step, obs: Observation, result: ReplayResult) -> RecoveryRule | None:
+        """Apply the first matching recovery rule and return it, or None if no rule
+        matched or its attempt budget is spent. The caller decides what to retry."""
         for rule in step.recovery:
             matched, _ = evaluate(rule.detect, obs, self.surface)
             if not matched:
@@ -401,7 +420,7 @@ class ReplayEngine:
             used = sum(1 for e in result.recoveries if e.step_id == step.id and e.rule_name == rule.name)
             if used >= rule.max_attempts:
                 self._log("recovery.exhausted", step=step.id, rule=rule.name, attempts=used)
-                return False
+                return None
             for act in rule.actions:
                 try:
                     self._dispatch(act)
@@ -410,8 +429,8 @@ class ReplayEngine:
             result.recoveries.append(
                 RecoveryEvent(step_id=step.id, rule_name=rule.name, attempt=used + 1, cleared=True))
             self._log("recovery.applied", step=step.id, rule=rule.name, attempt=used + 1)
-            return rule.retry_step
-        return False
+            return rule
+        return None
 
     @staticmethod
     def _transform(raw: str, kind: str) -> str:

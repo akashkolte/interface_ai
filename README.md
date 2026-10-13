@@ -115,7 +115,7 @@ parameterised the literal, so it generalises:
 
 ### 3. Why the remaining demos use a hand-curated artifact
 
-Steps 4–7 use `member.lookup_savings_balance`, whose provenance reads
+Steps 4–8 use `member.lookup_savings_balance`, whose provenance reads
 `none (hand-authored)`. That is deliberate, and the reason is the most
 interesting finding in this project.
 
@@ -156,7 +156,20 @@ answer is that no such member exists.
 → `FAILURE [checkpoint_failed]` naming the step, what was **expected**, what was
 **observed**, and a screenshot. Exit **1**.
 
-### 6. Cross-tenant reuse — one artifact, a sparse override
+### 6. A recoverable condition is handled, not escalated
+
+```bash
+.venv/bin/python -m src.cli replay \
+  --capability member.lookup_savings_balance \
+  --params '{"memberId":"12345"}' --fault session_timeout
+```
+
+→ `SUCCESS`, exit **0**. The search lands on "Your session has expired"; the
+capability's declared `session_expired` recovery rule signs in again, which
+resumes the expired request, and the run continues. The recovery is listed and
+the run is flagged **degraded**: it passed, but not cleanly.
+
+### 7. Cross-tenant reuse — one artifact, a sparse override
 
 ```bash
 .venv/bin/python -m src.cli replay \
@@ -168,7 +181,7 @@ answer is that no such member exists.
 `target_unresolvable`, which is the point: the override is a three-line patch,
 not a second copy of the capability.
 
-### 7. Escalation — a human takes the live session
+### 8. Escalation — a human takes the live session
 
 **Recorded end to end:** [`evidence/escalation-handoff.mp4`](evidence/escalation-handoff.mp4)
 (3 min, no audio) — the run getting stuck, an operator taking control from a
@@ -249,7 +262,7 @@ the record file; the waiting run mirrors it onto the real `SessionControl`, whic
 rotates the token. The store is the *signal*, never the authority — a
 hand-edited file cannot let automation act while a human holds control.
 
-### 8. The capability catalogue an agent would browse
+### 9. The capability catalogue an agent would browse
 
 ```bash
 .venv/bin/python -m src.cli catalog
